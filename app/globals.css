@@ -25,6 +25,10 @@
     --ring: 240 5.9% 10%;
     --radius: 0.5rem;
   }
+
+  .font-body {
+    @apply text-base font-sans;
+  }
 }
 
 @layer base {

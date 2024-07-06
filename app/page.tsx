@@ -1,6 +1,6 @@
 "use client"
 
-import PoducateGenerator from "@/components/poducategenerator.tsx"
+import { PoducateGenerator } from "@/components/poducategenerator"
 
 export default function Page() {
   return (
