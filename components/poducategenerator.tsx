@@ -25,7 +25,7 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 
-export function poducategenerator() {
+export function PoducateGenerator() {
   const [selectedSubject, setSelectedSubject] = useState("")
   const [selectedStyle, setSelectedStyle] = useState("")
   const [selectedLength, setSelectedLength] = useState(15)
@@ -43,7 +43,7 @@ export function poducategenerator() {
   const handleStyleChange = (value) => {
     setSelectedStyle(value)
   }
-  const handleLengthChange = (value) => {
+  const handleLengthChange = (value: number[]) => {
     setSelectedLength(value[0])
   }
   const handleDifficultyChange = (value) => {
@@ -78,7 +78,7 @@ export function poducategenerator() {
                   placeholder="Enter specifics (e.g., exam board, subject)"
                   className="w-full bg-white text-black p-4 rounded-2xl border border-gray-300 focus:border-[#39FFA0] focus:ring-[#39FFA0]"
                   maxLength={50}
-                  onInput={(e) => setSelectedSubject(e.target.value)}
+                  onChange={(e) => setSelectedSubject(e.target.value)}
                 />
               </div>
               <div className="mt-4 sm:mt-6 lg:mt-8">
