@@ -6,10 +6,10 @@
 "use client"
 
 import { useState } from "react"
-import { Input } from "@/components/ui/input"
+import { Input } from "/components/ui/input"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
-import { Button } from "@/components/ui/button"
-import { Slider } from "@/components/ui/slider"
+import { Button } from "/components/ui/button"
+import { Slider } from "/components/ui/slider"
 
 export default function Component() {
   const [selectedSubject, setSelectedSubject] = useState("")
