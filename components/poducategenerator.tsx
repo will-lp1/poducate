@@ -40,13 +40,13 @@ export function PoducateGenerator() {
     "Big Picture View",
     "Beginner's Guide",
   ]
-  const handleStyleChange = (value) => {
+  const handleStyleChange = (value: string) => {
     setSelectedStyle(value)
   }
   const handleLengthChange = (value: number[]) => {
     setSelectedLength(value[0])
   }
-  const handleDifficultyChange = (value) => {
+  const handleDifficultyChange = (value: number[]) => {
     setSelectedDifficulty(value[0])
   }
   return (
@@ -113,7 +113,6 @@ export function PoducateGenerator() {
                   aria-label="Podcast Length"
                   className="w-full bg-gradient-to-r from-[#39FFA0] to-gray-300 rounded-full"
                   onValueChange={handleLengthChange}
-                  direction="ascending"
                 />
                 <div className="flex justify-between text-sm text-black w-full mt-2">
                   <span>5 mins</span>
@@ -128,7 +127,6 @@ export function PoducateGenerator() {
                   step={1}
                   defaultValue={[5]}
                   aria-label="Podcast Difficulty"
-                  direction="ascending"
                   onValueChange={handleDifficultyChange}
                 />
                 <div className="flex justify-between text-sm text-black w-full mt-2">
@@ -146,7 +144,7 @@ export function PoducateGenerator() {
             <div className="flex items-center justify-between">
               <audio src={audioUrl} controls className="w-full" />
               <Button
-                variant="icon"
+                variant="outline"
                 className="bg-[#39FFA0] text-white hover:bg-[#39FFA0]/90 focus:ring-[#39FFA0] sm:text-lg lg:text-xl"
               >
                 <DownloadIcon className="h-6 w-6" />
@@ -159,7 +157,7 @@ export function PoducateGenerator() {
   )
 }
 
-function ChevronDownIcon(props) {
+function ChevronDownIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg
       {...props}
@@ -179,7 +177,7 @@ function ChevronDownIcon(props) {
 }
 
 
-function DownloadIcon(props) {
+function DownloadIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg
       {...props}
