@@ -1,0 +1,45 @@
+import OpenAI from 'openai';
+import { Voice, VoiceSettings } from 'elevenlabs-node';
+import { NextResponse } from 'next/server';
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const elevenLabsApiKey = process.env.ELEVEN_LABS_API_KEY;
+
+export async function POST(req: Request) {
+  try {
+    const { topic, subject, style, difficulty } = await req.json();
+    // Generate text using OpenAI
+    const completion = await openai.createCompletion({
+      model: "gpt-3.5-turbo",
+      messages: [
+        {
+          role: "system",
+          content: "You are a helpful assistant that creates podcast scripts."
+        },
+        {
+          role: "user",
+          content: `Create a podcast script about ${topic} in the style of ${style} at difficulty level ${difficulty}/10. Subject: ${subject}`
+        }
+      ],
+      max_tokens: 1000
+    });
+
+    const script = completion.data.choices[0].text?.trim();
+
+    if (!script) {
+      throw new Error('Failed to generate script');
+    }
+
+    // Convert text to speech using ElevenLabs
+    const voice = new Voice(elevenLabsApiKey);
+    const audioBuffer = await voice.textToSpeech("eleven_monolingual_v1", script, VoiceSettings.default);
+
+    // Here you would typically save the audio file and get a URL
+    // For this example, we'll just return the script
+    return NextResponse.json({ script, audioUrl: "https://example.com/generated-podcast.mp3" });
+
+  } catch (error) {
+    console.error('Error:', error);
+    return NextResponse.json({ error: 'Failed to generate podcast' }, { status: 500 });
+  }
+}
