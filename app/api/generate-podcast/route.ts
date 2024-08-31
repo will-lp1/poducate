@@ -28,14 +28,14 @@ export async function POST(req: Request) {
       messages: [
         {
           role: "system",
-          content: "You are an expert podcast script writer that creates single host podcast scripts, about 5000 characters in length."
+          content: "You are an expert podcast script writer that creates single host podcast scripts, about 5000 characters in length. Get straight to the point to optimise for learning"
         },
         {
           role: "user",
           content: `Create a podcast script about ${topic} in the style of ${style} at difficulty level ${difficulty}/10. Subject: ${subject} without any interruptions, speaker labels, or audio cues.`
         }
       ],
-      max_tokens: 1250
+      max_tokens: 1600
     });
 
     const script = completion.choices[0].message.content;
