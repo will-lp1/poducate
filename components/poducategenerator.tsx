@@ -16,6 +16,7 @@ export default function PoducateGenerator() {
   const [loading, setLoading] = useState(false)
   const [progress, setProgress] = useState(0)
   const [progressStage, setProgressStage] = useState('')
+  const [transcriptCopied, setTranscriptCopied] = useState(false)
   const styles = [
     "Quick Bites",
     "Deep Dives",
@@ -88,10 +89,15 @@ export default function PoducateGenerator() {
     }
   }
 
-  const copyTranscript = () => {
-    navigator.clipboard.writeText(transcript)
-    setTranscriptCopied(true)
-    setTimeout(() => setTranscriptCopied(false), 2000) // Reset after 2 seconds
+  const copyTranscript = async () => {
+    try {
+      await navigator.clipboard.writeText(transcript)
+      setTranscriptCopied(true)
+      setTimeout(() => setTranscriptCopied(false), 2000) // Reset after 2 seconds
+    } catch (err) {
+      console.error('Failed to copy transcript:', err)
+      alert('Failed to copy transcript. Please try again.')
+    }
   }
 
   return (
