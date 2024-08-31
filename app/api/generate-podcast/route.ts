@@ -49,7 +49,9 @@ export async function POST(req: Request) {
     const audio = await elevenlabs.generate({
       voice: "sPzOOqSRgtzdT8DPbJYh",
       text: script,
-      model: "eleven_turbo_v2"
+      voice_settings: {
+        model_id: "eleven_turbo_v2"
+      }
     });
 
     console.log('Converting audio to base64');
