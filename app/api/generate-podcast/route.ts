@@ -13,6 +13,10 @@ const elevenlabs = process.env.ELEVEN_LABS_API_KEY
   ? new ElevenLabsClient({ apiKey: process.env.ELEVEN_LABS_API_KEY })
   : null;
 
+function isOpenAIConfigured(client: OpenAI | null): client is OpenAI {
+  return client !== null;
+}
+
 export async function POST(req: Request) {
   try {
     console.log('Received request to generate podcast');
@@ -24,8 +28,10 @@ export async function POST(req: Request) {
     // Parse the JSON body
     const { topic, subject, style, difficulty } = JSON.parse(rawBody);
     console.log('Parsed request data:', { topic, subject, style, difficulty });
-
     console.log('Generating script with OpenAI');
+    if (!isOpenAIConfigured(openai)) {
+      throw new Error('OpenAI client is not initialized');
+    }
     const completion = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
       messages: [
@@ -47,8 +53,10 @@ export async function POST(req: Request) {
     if (!script) {
       throw new Error('Failed to generate script');
     }
-
     console.log('Generating audio with ElevenLabs');
+    if (!elevenlabs) {
+      throw new Error('ElevenLabs client is not initialized');
+    }
     const audio = await elevenlabs.generate({
       voice: "sPzOOqSRgtzdT8DPbJYh",
       text: script,
