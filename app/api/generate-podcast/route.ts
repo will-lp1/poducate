@@ -5,10 +5,13 @@ import { ElevenLabsClient } from "elevenlabs";
 console.log('OPENAI_API_KEY:', process.env.OPENAI_API_KEY ? 'Set' : 'Not set');
 console.log('ELEVEN_LABS_API_KEY:', process.env.ELEVEN_LABS_API_KEY ? 'Set' : 'Not set');
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-const elevenlabs = new ElevenLabsClient({
-  apiKey: process.env.ELEVEN_LABS_API_KEY
-});
+const openai = process.env.OPENAI_API_KEY 
+  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  : null;
+
+const elevenlabs = process.env.ELEVEN_LABS_API_KEY
+  ? new ElevenLabsClient({ apiKey: process.env.ELEVEN_LABS_API_KEY })
+  : null;
 
 export async function POST(req: Request) {
   try {
@@ -28,7 +31,7 @@ export async function POST(req: Request) {
       messages: [
         {
           role: "system",
-          content: "You are an expert podcast script writer that creates single host podcast scripts, about 5000 characters in length. Get straight to the point to optimise for learning"
+          content: "You are an expert podcast script writer that creates single host podcast scripts, about 5000 characters in length. Get straight to the point to optimise for learning. Little to no preamble or introduction. Just get into the topic."
         },
         {
           role: "user",
