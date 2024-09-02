@@ -28,6 +28,7 @@ export async function POST(req: Request) {
     // Parse the JSON body
     const { topic, subject, style, difficulty } = JSON.parse(rawBody);
     console.log('Parsed request data:', { topic, subject, style, difficulty });
+    
     console.log('Generating script with OpenAI');
     if (!isOpenAIConfigured(openai)) {
       throw new Error('OpenAI client is not initialized');
