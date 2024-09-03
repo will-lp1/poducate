@@ -22,8 +22,10 @@ export default function PoducateGenerator() {
   const [progressMessages, setProgressMessages] = useState([
     'Channeling our inner Joe Rogan',
     'Crafting expert podcasts',
-    'Streaming audio magic',
-    'Polishing the final touches',
+    'Diving deep into the topic',
+    'Polishing the script',
+    'Generating audio',
+    'Almost there...',
   ])
   const [currentMessageIndex, setCurrentMessageIndex] = useState(0)
   const styles = [
