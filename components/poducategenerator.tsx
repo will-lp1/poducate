@@ -55,27 +55,30 @@ export default function PoducateGenerator() {
         body: JSON.stringify({ topic, subject: selectedSubject, style: selectedStyle, difficulty: selectedDifficulty })
       });
 
-      console.log('Response status:', response.status);
-      const responseText = await response.text();
-      console.log('Response text:', responseText);
-
-      let responseData;
-      try {
-        responseData = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error('Error parsing JSON:', parseError);
-        throw new Error('Server returned an invalid JSON response');
-      }
-
       if (!response.ok) {
-        console.error('Error response:', responseData);
-        throw new Error(`Failed to generate podcast: ${responseData.error}, ${responseData.details}`);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('No reader available');
+      }
+
+      const chunks = [];
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+      }
+
+      const blob = new Blob(chunks, { type: 'audio/mpeg' });
+      const audioUrl = URL.createObjectURL(blob);
+      setAudioUrl(audioUrl);
 
       setProgressStage('Generating audio')
       setProgress(75)
 
-      setAudioUrl(responseData.audioData);
+      const responseData = await response.json();
       setScript(responseData.script);
       setTranscript(responseData.script);
 
