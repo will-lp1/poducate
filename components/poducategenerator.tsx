@@ -11,12 +11,21 @@ export default function PoducateGenerator() {
   const [selectedStyle, setSelectedStyle] = useState<string>("")
   const [selectedDifficulty, setSelectedDifficulty] = useState(5)
   const [audioUrl, setAudioUrl] = useState("")
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null)
   const [script, setScript] = useState("")
   const [transcript, setTranscript] = useState("")
   const [loading, setLoading] = useState(false)
   const [progress, setProgress] = useState(0)
   const [progressStage, setProgressStage] = useState('')
   const [transcriptCopied, setTranscriptCopied] = useState(false)
+  const [showPlayer, setShowPlayer] = useState(false)
+  const [progressMessages, setProgressMessages] = useState([
+    'Channeling our inner Joe Rogan',
+    'Crafting expert podcasts',
+    'Streaming audio magic',
+    'Polishing the final touches',
+  ])
+  const [currentMessageIndex, setCurrentMessageIndex] = useState(0)
   const styles = [
     "Quick Bites",
     "Deep Dives",
@@ -35,17 +44,25 @@ export default function PoducateGenerator() {
     setSelectedDifficulty(value[0])
   }
 
+  const updateProgressRandomly = () => {
+    const randomIncrement = Math.random() * 5 + 1; // Random increment between 1 and 6
+    setProgress(prevProgress => Math.min(prevProgress + randomIncrement, 99));
+    setCurrentMessageIndex(prevIndex => (prevIndex + 1) % progressMessages.length);
+    setProgressStage(progressMessages[currentMessageIndex]);
+  };
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setLoading(true)
     setProgress(0)
     setProgressStage('Initializing')
+    setShowPlayer(false)
     const formData = new FormData(event.currentTarget)
     const topic = formData.get('topic') as string
 
+    const progressInterval = setInterval(updateProgressRandomly, 1000);
+
     try {
-      setProgressStage('Generating script')
-      setProgress(25)
       console.log('Sending request to generate podcast');
       const response = await fetch('/api/generate-podcast', {
         method: 'POST',
@@ -56,7 +73,9 @@ export default function PoducateGenerator() {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorData = await response.json();
+        console.error('Server error details:', errorData);
+        throw new Error(`${errorData.error}: ${errorData.message}\n${errorData.details}`);
       }
 
       const reader = response.body?.getReader();
@@ -64,30 +83,48 @@ export default function PoducateGenerator() {
         throw new Error('No reader available');
       }
 
-      const chunks = [];
+      let script = '';
+      const audioChunks: Uint8Array[] = [];
+      let isFirstChunk = true;
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        chunks.push(value);
+
+        if (isFirstChunk) {
+          const textDecoder = new TextDecoder();
+          const text = textDecoder.decode(value);
+          const newlineIndex = text.indexOf('\n');
+          if (newlineIndex !== -1) {
+            const jsonPart = text.slice(0, newlineIndex);
+            const data = JSON.parse(jsonPart);
+            script = data.script;
+            setScript(script);
+            setTranscript(script);
+            audioChunks.push(value.slice(newlineIndex + 1));
+          }
+          isFirstChunk = false;
+        } else {
+          audioChunks.push(value);
+        }
       }
 
-      const blob = new Blob(chunks, { type: 'audio/mpeg' });
-      const audioUrl = URL.createObjectURL(blob);
-      setAudioUrl(audioUrl);
+      const audioBlob = new Blob(audioChunks, { type: 'audio/mpeg' });
+      setAudioBlob(audioBlob);
+      setAudioUrl(URL.createObjectURL(audioBlob));
 
-      setProgressStage('Generating audio')
-      setProgress(75)
-
-      const responseData = await response.json();
-      setScript(responseData.script);
-      setTranscript(responseData.script);
-
+      // Set progress to 100% and show the player when audio is fully generated
       setProgress(100)
-      setProgressStage('Complete')
+      setProgressStage('Podcast ready for your ears')
+      setShowPlayer(true)
     } catch (error) {
       console.error('Error in handleSubmit:', error);
       alert('Error: ' + (error instanceof Error ? error.message : 'Unknown error occurred'));
+      if (error instanceof Error && error.message.includes('Authentication failed')) {
+        alert('Please check your API keys in the server configuration.');
+      }
     } finally {
+      clearInterval(progressInterval);
       setLoading(false)
     }
   }
@@ -187,39 +224,49 @@ export default function PoducateGenerator() {
               </div>
             </div>
           </form>
-          {audioUrl && (
-            <div className="bg-gray-100 rounded-2xl p-6 sm:p-8 lg:p-10">
-              <h2 className="text-xl font-bold mb-4 sm:text-2xl lg:text-3xl text-black">Your Podcast</h2>
+          <div className="bg-gray-100 rounded-2xl p-6 sm:p-8 lg:p-10">
+            <h2 className="text-xl font-bold mb-4 sm:text-2xl lg:text-3xl text-black">Your Podcast</h2>
+            {showPlayer && audioUrl && (
               <div className="flex items-center justify-between mb-4">
                 <audio src={audioUrl} controls className="w-full" />
-                <Button
-                  variant="outline"
-                  className="bg-[#39FFA0] text-white hover:bg-[#39FFA0]/90 focus:ring-[#39FFA0] sm:text-lg lg:text-xl"
-                  onClick={() => window.open(audioUrl, '_blank')}
-                >
-                  <DownloadIcon className="h-6 w-4" />
-                </Button>
-              </div>
-              {transcript && (
-                <div className="mt-4">
+                {audioBlob && (
                   <Button
                     variant="outline"
-                    className="w-full"
-                    onClick={copyTranscript}
-                    disabled={transcriptCopied}
+                    className="bg-[#39FFA0] text-white hover:bg-[#39FFA0]/90 focus:ring-[#39FFA0] sm:text-lg lg:text-xl ml-4"
+                    onClick={() => {
+                      const url = URL.createObjectURL(audioBlob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = 'podcast.mp3';
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                    }}
                   >
-                    {transcriptCopied ? (
-                      <>
-                        Copied <CheckIcon className="ml-2 h-4 w-4" />
-                      </>
-                    ) : (
-                      "Copy Transcript"
-                    )}
+                    <DownloadIcon className="h-6 w-4" />
                   </Button>
-                </div>
-              )}
-            </div>
-          )}
+                )}
+              </div>
+            )}
+            {transcript && (
+              <div className="mt-4">
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={copyTranscript}
+                  disabled={transcriptCopied}
+                >
+                  {transcriptCopied ? (
+                    <>
+                      Copied <CheckIcon className="ml-2 h-4 w-4" />
+                    </>
+                  ) : (
+                    "Copy Transcript"
+                  )}
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
