@@ -183,20 +183,20 @@ export default function Component() {
   const router = useRouter()
 
   useEffect(() => {
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user ?? null)
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setUser(user)
       setLoading(false)
-    })
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      setLoading(false)
-    })
-
-    return () => {
-      authListener?.subscription.unsubscribe()
     }
+
+    getUser()
   }, [supabase.auth])
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/auth')
+    }
+  }, [user, loading, router])
 
   const signIn = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
@@ -381,11 +381,7 @@ export default function Component() {
   }
 
   if (!user) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <Button onClick={signIn}>Sign In with Google</Button>
-      </div>
-    )
+    return null
   }
 
   return (
