@@ -10,7 +10,7 @@ export async function middleware(req: NextRequest) {
   const isAuthPage = req.nextUrl.pathname === '/auth'
   const isDashboardPage = req.nextUrl.pathname === '/dashboard'
 
-  // Redirect to external home page if not authenticated and trying to access dashboard
+  // Redirect to Webflow home page if not authenticated and trying to access dashboard
   if (!session && isDashboardPage) {
     return NextResponse.redirect('https://trypoducate.com/home')
   }

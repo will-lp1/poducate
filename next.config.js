@@ -5,11 +5,12 @@ const nextConfig = {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   },
-  async rewrites() {
+  async redirects() {
     return [
       {
         source: '/home',
         destination: 'https://trypoducate.com/home',
+        permanent: false,
       },
     ]
   },
@@ -20,7 +21,7 @@ const nextConfig = {
         headers: [
           {
             key: 'Content-Security-Policy',
-            value: "frame-ancestors 'self' https://app.trypoducate.com",
+            value: "frame-ancestors 'self' https://trypoducate.com",
           },
         ],
       },
