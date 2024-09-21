@@ -172,6 +172,7 @@ export default function Component() {
   const [correctAnswers, setCorrectAnswers] = useState<number>(0)
   const [showIntroGuide, setShowIntroGuide] = useState(true)  // Set to true initially
   const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const lastMessageRef = useRef<HTMLDivElement>(null);
@@ -181,6 +182,12 @@ export default function Component() {
   useEffect(() => {
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null)
+      setLoading(false)
+    })
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null)
+      setLoading(false)
     })
 
     return () => {
@@ -191,6 +198,9 @@ export default function Component() {
   const signIn = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/dashboard`
+      }
     })
     if (error) console.error('Error signing in:', error)
   }
@@ -357,6 +367,10 @@ export default function Component() {
   const closeIntroGuide = () => {
     setShowIntroGuide(false)
     localStorage.setItem('hasSeenIntroGuide', 'true')
+  }
+
+  if (loading) {
+    return <div>Loading...</div>
   }
 
   if (!user) {
