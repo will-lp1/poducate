@@ -763,7 +763,7 @@ export default function Component() {
                   </div>
                   <div>
                     <h3 className="text-xl font-semibold">✨ Generator</h3>
-                    <p>Create custom podcast episodes on any topic you're interested in. Perfect for personalized learning!</p>
+                    <p>Create custom podcast episodes on any topic you&apos;re interested in. Perfect for personalized learning!</p>
                   </div>
                   <div>
                     <h3 className="text-xl font-semibold">🤖 Podugenius Chat</h3>
