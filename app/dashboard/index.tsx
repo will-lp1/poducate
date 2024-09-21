@@ -24,6 +24,12 @@ import axios from 'axios';
 import { Progress } from "@/components/ui/progress"
 import { RadioGroup, RadioGroupItem } from "@radix-ui/react-radio-group"
 import { Label } from "@radix-ui/react-label"
+import { createClient } from '@supabase/supabase-js'
+import { User } from '@supabase/supabase-js'
+
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_KEY!
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
 
 const subjects = [
   { name: "Technology", color: "bg-blue-500", icon: "🖥️", available: true },
@@ -169,9 +175,44 @@ export default function Component() {
   const [totalQuestions, setTotalQuestions] = useState<number>(0)
   const [correctAnswers, setCorrectAnswers] = useState<number>(0)
   const [showIntroGuide, setShowIntroGuide] = useState(true)  // Set to true initially
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const lastMessageRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const fetchSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      setUser(session?.user ?? null)
+      setLoading(false)
+    }
+    fetchSession()
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        const currentUser = session?.user
+        setUser(currentUser ?? null)
+        setLoading(false)
+      }
+    )
+
+    return () => {
+      authListener?.subscription.unsubscribe()
+    }
+  }, [])
+
+  const signIn = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+    })
+    if (error) console.error('Error signing in:', error)
+  }
+
+  const signOut = async () => {
+    const { error } = await supabase.auth.signOut()
+    if (error) console.error('Error signing out:', error)
+  }
 
   useEffect(() => {
     if (lastMessageRef.current) {
@@ -332,6 +373,18 @@ export default function Component() {
     localStorage.setItem('hasSeenIntroGuide', 'true')
   }
 
+  if (loading) {
+    return <div>Loading...</div>
+  }
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Button onClick={signIn}>Sign In with Google</Button>
+      </div>
+    )
+  }
+
   return (
     <>
       <div className="flex h-screen bg-gray-100">
@@ -373,6 +426,7 @@ export default function Component() {
               Generator
             </Button>
           </nav>
+          <Button onClick={signOut} variant="outline">Sign Out</Button>
 
           {/* Sidebar player */}
           <AnimatePresence>
