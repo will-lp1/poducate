@@ -7,26 +7,26 @@ export async function middleware(req: NextRequest) {
   const supabase = createMiddlewareClient({ req, res })
   const { data: { session } } = await supabase.auth.getSession()
 
-  // Redirect to landing page if not authenticated and trying to access dashboard
-  if (!session && req.nextUrl.pathname === '/dashboard') {
-    return NextResponse.redirect(new URL('/home', req.url))
-  }
-
-  // Redirect to dashboard if authenticated and trying to access auth page
-  if (session && req.nextUrl.pathname === '/auth') {
-    return NextResponse.redirect(new URL('/dashboard', req.url))
-  }
+  const isAuthPage = req.nextUrl.pathname === '/auth'
+  const isDashboardPage = req.nextUrl.pathname === '/dashboard'
+  const isHomePage = req.nextUrl.pathname === '/home'
 
   // Allow access to the landing page for all users
-  if (req.nextUrl.pathname === '/home') {
+  if (isHomePage) {
     return res
   }
 
-  // Redirect unauthenticated users to the landing page for all other routes
-  if (!session && req.nextUrl.pathname !== '/auth') {
+  // Redirect to dashboard if authenticated and trying to access auth page
+  if (session && isAuthPage) {
+    return NextResponse.redirect(new URL('/dashboard', req.url))
+  }
+
+  // Redirect to landing page if not authenticated and trying to access dashboard
+  if (!session && isDashboardPage) {
     return NextResponse.redirect(new URL('/home', req.url))
   }
 
+  // For all other routes, allow the request to proceed
   return res
 }
 
