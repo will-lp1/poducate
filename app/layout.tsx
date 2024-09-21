@@ -16,18 +16,14 @@ const fontBody = Inter({
   variable: '--font-body',
 })
 
-export default function Layout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   return (
     <html lang="en">
-      <body 
-        className={cn(
-          'antialiased',
-          fontHeading.variable,
-          fontBody.variable
-        )}
-      >
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   )
 }
