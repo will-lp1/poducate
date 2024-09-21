@@ -27,15 +27,12 @@ export default function PodcastPlayer({
     if (isPlaying) {
       const durationInSeconds = parseInt(episode.duration) * 60
       interval = setInterval(() => {
-        const newProgress = progressRef.current + (100 / durationInSeconds)
+        const newProgress = Math.min(100, progressRef.current + (100 / durationInSeconds))
+        setProgress(newProgress)
         if (newProgress >= 100) {
           clearInterval(interval)
           setIsPlaying(false)
-          setProgress(100)
-        } else {
-          setProgress(newProgress)
         }
-        progressRef.current = newProgress
       }, 1000)
     }
     return () => clearInterval(interval)
