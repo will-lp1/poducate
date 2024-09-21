@@ -26,6 +26,7 @@ import axios from 'axios';
 import { Progress } from "@/components/ui/progress"
 import { RadioGroup, RadioGroupItem } from "@radix-ui/react-radio-group"
 import { Label } from "@radix-ui/react-label"
+import { useRouter } from 'next/navigation'
 
 const subjects = [
   { name: "Technology", color: "bg-blue-500", icon: "🖥️", available: true },
@@ -179,6 +180,8 @@ export default function Component() {
 
   const supabase = createClientComponentClient()
 
+  const router = useRouter()
+
   useEffect(() => {
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null)
@@ -207,7 +210,11 @@ export default function Component() {
 
   const signOut = async () => {
     const { error } = await supabase.auth.signOut()
-    if (error) console.error('Error signing out:', error)
+    if (error) {
+      console.error('Error signing out:', error)
+    } else {
+      router.push('/') // Redirect to the landing page
+    }
   }
 
   useEffect(() => {
