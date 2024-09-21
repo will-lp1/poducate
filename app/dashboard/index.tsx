@@ -213,7 +213,7 @@ export default function Component() {
     if (error) {
       console.error('Error signing out:', error)
     } else {
-      router.push('/') // Redirect to the landing page
+      window.location.href = 'https://trypoducate.com/home'
     }
   }
 

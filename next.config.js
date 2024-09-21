@@ -5,14 +5,7 @@ const nextConfig = {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   },
-  async rewrites() {
-    return [
-      {
-        source: '/home',
-        destination: 'https://trypoducate.com/home',
-      },
-    ]
-  },
+  // Remove the rewrites section if you're not using it for other purposes
 }
 
 module.exports = nextConfig
