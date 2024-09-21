@@ -9,7 +9,7 @@ const nextConfig = {
     return [
       {
         source: '/home',
-        destination: 'https://trypoducate.com/home',
+        destination: '/', // Temporarily redirect to the root
         permanent: false,
       },
     ]
