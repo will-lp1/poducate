@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { User } from '@supabase/supabase-js'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -24,12 +26,6 @@ import axios from 'axios';
 import { Progress } from "@/components/ui/progress"
 import { RadioGroup, RadioGroupItem } from "@radix-ui/react-radio-group"
 import { Label } from "@radix-ui/react-label"
-import { createClient } from '@supabase/supabase-js'
-import { User } from '@supabase/supabase-js'
-
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
 
 const subjects = [
   { name: "Technology", color: "bg-blue-500", icon: "🖥️", available: true },
@@ -180,6 +176,8 @@ export default function Component() {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const lastMessageRef = useRef<HTMLDivElement>(null);
 
+  const supabase = createClientComponentClient()
+
   useEffect(() => {
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null)
@@ -188,7 +186,7 @@ export default function Component() {
     return () => {
       authListener?.subscription.unsubscribe()
     }
-  }, [])
+  }, [supabase.auth])
 
   const signIn = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
