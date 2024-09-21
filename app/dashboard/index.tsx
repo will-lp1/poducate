@@ -610,7 +610,6 @@ export default function Component() {
               className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4"
             >
               <motion.div
-                layoutId="lightbox-content"
                 initial={{ scale: 0.95, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.95, opacity: 0 }}
