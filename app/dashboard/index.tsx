@@ -28,7 +28,7 @@ import { createClient } from '@supabase/supabase-js'
 import { User } from '@supabase/supabase-js'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_KEY!
+const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
 
 const subjects = [
@@ -176,26 +176,14 @@ export default function Component() {
   const [correctAnswers, setCorrectAnswers] = useState<number>(0)
   const [showIntroGuide, setShowIntroGuide] = useState(true)  // Set to true initially
   const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const lastMessageRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const fetchSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null)
-      setLoading(false)
-    }
-    fetchSession()
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        const currentUser = session?.user
-        setUser(currentUser ?? null)
-        setLoading(false)
-      }
-    )
+    })
 
     return () => {
       authListener?.subscription.unsubscribe()
@@ -371,10 +359,6 @@ export default function Component() {
   const closeIntroGuide = () => {
     setShowIntroGuide(false)
     localStorage.setItem('hasSeenIntroGuide', 'true')
-  }
-
-  if (loading) {
-    return <div>Loading...</div>
   }
 
   if (!user) {
