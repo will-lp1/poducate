@@ -2,334 +2,252 @@
 
 import React, { useState } from "react"
 import { Input } from "./ui/input"
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "./ui/dropdown-menu"
 import { Button } from "./ui/button"
 import { Slider } from "./ui/slider"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select"
+import { Progress } from "./ui/progress"
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
+import { Episode } from "@/types/podcast"
+import PodcastPlayer from "./PodcastPlayer"
+import { Download, BookmarkPlus, Copy, Check } from 'lucide-react'
+import axios from 'axios'
 
-export default function PoducateGenerator() {
+const predefinedSubjects = ["Technology", "Science", "History", "Arts", "Business", "Health"]
+const styles = ["Quick Bites", "Deep Dives", "Story Time", "Key Ideas Explained", "Casual Conversations", "Big Picture View", "Beginner's Guide"]
+
+export default function PoducateGenerator({ setBookmarks }: { setBookmarks: React.Dispatch<React.SetStateAction<Episode[]>> }) {
+  const [topic, setTopic] = useState("")
   const [selectedSubject, setSelectedSubject] = useState<string>("")
   const [selectedStyle, setSelectedStyle] = useState<string>("")
   const [selectedDifficulty, setSelectedDifficulty] = useState(5)
   const [audioUrl, setAudioUrl] = useState("")
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null)
-  const [script, setScript] = useState("")
   const [transcript, setTranscript] = useState("")
   const [loading, setLoading] = useState(false)
   const [progress, setProgress] = useState(0)
   const [progressStage, setProgressStage] = useState('')
   const [transcriptCopied, setTranscriptCopied] = useState(false)
   const [showPlayer, setShowPlayer] = useState(false)
-  const [progressMessages, setProgressMessages] = useState([
-    'Channeling our inner Joe Rogan',
-    'Crafting expert podcasts',
-    'Diving deep into the topic',
-    'Polishing the script',
-    'Generating audio',
-    'Almost there...',
-  ])
-  const [currentMessageIndex, setCurrentMessageIndex] = useState(0)
-  const styles = [
-    "Quick Bites",
-    "Deep Dives",
-    "Story Time",
-    "Key Ideas Explained",
-    "Casual Conversations",
-    "Big Picture View",
-    "Beginner's Guide",
-  ]
+  const [customSubject, setCustomSubject] = useState("")
 
-  const handleStyleChange = (value: string) => {
-    setSelectedStyle(value)
-  }
-
-  const handleDifficultyChange = (value: number[]) => {
-    setSelectedDifficulty(value[0])
-  }
-
-  const updateProgressRandomly = () => {
-    const randomIncrement = Math.random() * 5 + 1; // Random increment between 1 and 6
-    setProgress(prevProgress => Math.min(prevProgress + randomIncrement, 99));
-    setCurrentMessageIndex(prevIndex => (prevIndex + 1) % progressMessages.length);
-    setProgressStage(progressMessages[currentMessageIndex]);
+  const calculateAudioDuration = (audioBlob: Blob): Promise<string> => {
+    return new Promise((resolve) => {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const arrayBuffer = event.target?.result as ArrayBuffer;
+        audioContext.decodeAudioData(arrayBuffer, (buffer) => {
+          const durationInSeconds = buffer.duration;
+          const minutes = Math.floor(durationInSeconds / 60);
+          const seconds = Math.floor(durationInSeconds % 60);
+          resolve(`${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
+        });
+      };
+      reader.readAsArrayBuffer(audioBlob);
+    });
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    const subjectToUse = selectedSubject === "custom" ? customSubject : selectedSubject
     setLoading(true)
     setProgress(0)
     setProgressStage('Initializing')
     setShowPlayer(false)
-    const formData = new FormData(event.currentTarget)
-    const topic = formData.get('topic') as string
-
-    const progressInterval = setInterval(updateProgressRandomly, 1000);
 
     try {
-      console.log('Sending request to generate podcast');
-      const response = await fetch('/api/generate-podcast', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ topic, subject: selectedSubject, style: selectedStyle, difficulty: selectedDifficulty })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Server error details:', errorData);
-        throw new Error(`${errorData.error}: ${errorData.message}\n${errorData.details}`);
-      }
-
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error('No reader available');
-      }
-
-      let script = '';
-      const audioChunks: Uint8Array[] = [];
-      let isFirstChunk = true;
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        if (isFirstChunk) {
-          const textDecoder = new TextDecoder();
-          const text = textDecoder.decode(value);
-          const newlineIndex = text.indexOf('\n');
-          if (newlineIndex !== -1) {
-            const jsonPart = text.slice(0, newlineIndex);
-            const data = JSON.parse(jsonPart);
-            script = data.script;
-            setScript(script);
-            setTranscript(script);
-            audioChunks.push(value.slice(newlineIndex + 1));
-          }
-          isFirstChunk = false;
-        } else {
-          audioChunks.push(value);
+      setProgressStage('Generating podcast')
+      const response = await axios.post('/api/generate-podcast', {
+        topic,
+        subject: subjectToUse,
+        style: selectedStyle,
+        difficulty: selectedDifficulty
+      }, {
+        responseType: 'arraybuffer',
+        onDownloadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total ?? 1));
+          setProgress(percentCompleted);
         }
-      }
+      })
+
+      const responseData = new TextDecoder().decode(response.data);
+      const [scriptJson, ...audioChunks] = responseData.split('\n');
+      const { script } = JSON.parse(scriptJson);
+      setTranscript(script);
 
       const audioBlob = new Blob(audioChunks, { type: 'audio/mpeg' });
       setAudioBlob(audioBlob);
       setAudioUrl(URL.createObjectURL(audioBlob));
 
-      // Set progress to 100% and show the player when audio is fully generated
+      // Calculate audio duration
+      setProgressStage('Finalizing')
+      const duration = await calculateAudioDuration(audioBlob)
       setProgress(100)
-      setProgressStage('Podcast ready for your ears')
+
+      const newPodcast: Episode = {
+        id: Date.now(),
+        title: `Generated Podcast: ${topic}`,
+        duration: duration,
+        subject: subjectToUse,
+        transcript: script
+      }
+
       setShowPlayer(true)
     } catch (error) {
-      console.error('Error in handleSubmit:', error);
-      alert('Error: ' + (error instanceof Error ? error.message : 'Unknown error occurred'));
-      if (error instanceof Error && error.message.includes('Authentication failed')) {
-        alert('Please check your API keys in the server configuration.');
-      }
+      console.error('Error generating podcast:', error)
+      alert('Failed to generate podcast. Please try again.')
     } finally {
-      clearInterval(progressInterval);
       setLoading(false)
     }
   }
 
   const copyTranscript = async () => {
-    try {
-      await navigator.clipboard.writeText(transcript)
-      setTranscriptCopied(true)
-      setTimeout(() => setTranscriptCopied(false), 2000) // Reset after 2 seconds
-    } catch (err) {
-      console.error('Failed to copy transcript:', err)
-      alert('Failed to copy transcript. Please try again.')
+    await navigator.clipboard.writeText(transcript)
+    setTranscriptCopied(true)
+    setTimeout(() => setTranscriptCopied(false), 2000)
+  }
+
+  const handleSaveBookmark = () => {
+    if (audioBlob) {
+      const newPodcast: Episode = {
+        id: Date.now(),
+        title: `Generated Podcast: ${topic}`,
+        duration: '5:00',
+        subject: selectedSubject,
+        transcript: transcript,
+      }
+      setBookmarks(prev => [...prev, newPodcast])
+      alert('Podcast saved to bookmarks successfully!')
     }
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50 px-4 py-6">
-      <div className="max-w-xl w-full bg-white rounded-2xl shadow-lg">
-        <header className="p-6 sm:p-8 lg:p-10 bg-[#39FFA0] rounded-t-2xl">
-          <h1 className="text-3xl font-bold text-white sm:text-4xl lg:text-5xl">Poducate</h1>
-        </header>
-        <div className="p-6 sm:p-8 lg:p-10">
-          <form className="flex flex-col items-start mb-6 gap-4 sm:gap-6 lg:gap-8" onSubmit={handleSubmit}>
-            <div className="bg-gray-100 rounded-2xl p-6 sm:p-8 lg:p-10 w-full">
-              <h3 className="text-lg font-medium mb-2 sm:text-xl lg:text-2xl text-black">Topic</h3>
-              <div className="mt-4 sm:mt-6 lg:mt-8">
-                <Input
-                  type="text"
-                  name="topic"
-                  placeholder="e.g. The Industrial Revolution, Ionic Bonds"
-                  className="w-full bg-white text-black p-4 rounded-2xl border border-gray-300 focus:border-[#39FFA0] focus:ring-[#39FFA0]"
-                  maxLength={50}
-                  required
-                />
-              </div>
-            </div>
-            <div className="bg-gray-100 rounded-2xl p-6 sm:p-8 lg:p-10 w-full">
-              <h3 className="text-lg font-medium mb-2 sm:text-xl lg:text-2xl text-black">Specification</h3>
-              <p className="sm:text-lg lg:text-xl text-black">Provide details about the podcast specifications.</p>
-              <div className="mt-4 sm:mt-6 lg:mt-8">
-                <Input
-                  type="text"
-                  placeholder="Enter specifics (e.g., exam board, subject)"
-                  className="w-full bg-white text-black p-4 rounded-2xl border border-gray-300 focus:border-[#39FFA0] focus:ring-[#39FFA0]"
-                  maxLength={50}
-                  onChange={(e) => setSelectedSubject(e.target.value)}
-                />
-              </div>
-              <div className="mt-4 sm:mt-6 lg:mt-8">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full bg-white text-black border border-gray-300 focus:border-[#39FFA0] focus:ring-[#39FFA0]"
-                    >
-                      {selectedStyle || "Select Podcast Style"}
-                      <ChevronDownIcon className="ml-2 h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-full">
-                    {styles.map((style) => (
-                      <DropdownMenuItem key={style} onSelect={() => handleStyleChange(style)}>
-                        {style}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
-            <div className="flex flex-col w-full gap-4 sm:gap-6 lg:gap-8">
-              <div className="flex flex-col items-start">
-                <span className="mb-2 text-black sm:text-lg lg:text-xl">Difficulty:</span>
-                <Slider
-                  min={1}
-                  max={10}
-                  step={1}
-                  defaultValue={[5]}
-                  onValueChange={handleDifficultyChange}
-                />
-                <div className="flex justify-between text-sm text-black w-full mt-2">
-                  <span className="sm:text-lg lg:text-xl">Curious Learner </span>
-                  <span className="sm:text-lg lg:text-xl">Einstein </span>
-                </div>
-              </div>
-              <div className="w-full">
-                <Button type="submit" className="w-full bg-[#39FFA0] text-white hover:bg-[#39FFA0]/90 focus:ring-[#39FFA0] sm:text-lg lg:text-xl" disabled={loading}>
-                  {loading ? `${progressStage}...` : "Generate Podcast"}
-                </Button>
-                {loading && (
-                  <div className="mt-2">
-                    <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
-                      <div className="bg-[#39FFA0] h-2.5 rounded-full" style={{ width: `${progress}%` }}></div>
-                    </div>
-                    <p className="text-sm text-center mt-1">{progressStage}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </form>
-          <div className="bg-gray-100 rounded-2xl p-6 sm:p-8 lg:p-10">
-            <h2 className="text-xl font-bold mb-4 sm:text-2xl lg:text-3xl text-black">Your Podcast</h2>
-            {showPlayer && audioUrl && (
-              <div className="flex items-center justify-between mb-4">
-                <audio src={audioUrl} controls className="w-full" />
-                {audioBlob && (
-                  <Button
-                    variant="outline"
-                    className="bg-[#39FFA0] text-white hover:bg-[#39FFA0]/90 focus:ring-[#39FFA0] sm:text-lg lg:text-xl ml-4"
-                    onClick={() => {
-                      const url = URL.createObjectURL(audioBlob);
-                      const a = document.createElement('a');
-                      a.href = url;
-                      a.download = 'podcast.mp3';
-                      document.body.appendChild(a);
-                      a.click();
-                      document.body.removeChild(a);
-                    }}
-                  >
-                    <DownloadIcon className="h-6 w-4" />
-                  </Button>
-                )}
-              </div>
-            )}
-            {transcript && (
-              <div className="mt-4">
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={copyTranscript}
-                  disabled={transcriptCopied}
-                >
-                  {transcriptCopied ? (
-                    <>
-                      Copied <CheckIcon className="ml-2 h-4 w-4" />
-                    </>
-                  ) : (
-                    "Copy Transcript"
-                  )}
-                </Button>
-              </div>
+    <Card className="w-full max-w-4xl mx-auto">
+      <CardHeader>
+        <CardTitle>Generate a Podcast</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <label htmlFor="topic" className="text-sm font-medium">Topic</label>
+            <Input
+              id="topic"
+              placeholder="e.g. The Industrial Revolution, Ionic Bonds"
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <label htmlFor="subject" className="text-sm font-medium">Subject</label>
+            <Select value={selectedSubject} onValueChange={setSelectedSubject}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select or add a subject" />
+              </SelectTrigger>
+              <SelectContent>
+                {predefinedSubjects.map((subject) => (
+                  <SelectItem key={subject} value={subject}>{subject}</SelectItem>
+                ))}
+                <SelectItem value="custom">Custom Subject</SelectItem>
+              </SelectContent>
+            </Select>
+            {selectedSubject === "custom" && (
+              <Input
+                placeholder="Add subject and exam board, e.g. Edexcel GCSE Business Studies"
+                value={customSubject}
+                onChange={(e) => setCustomSubject(e.target.value)}
+                className="mt-2"
+                required
+              />
             )}
           </div>
-        </div>
-      </div>
-    </div>
-  )
-}
+          <div className="space-y-2">
+            <label htmlFor="style" className="text-sm font-medium">Style</label>
+            <Select value={selectedStyle} onValueChange={setSelectedStyle}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a style" />
+              </SelectTrigger>
+              <SelectContent>
+                {styles.map((style) => (
+                  <SelectItem key={style} value={style}>{style}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <label htmlFor="difficulty" className="text-sm font-medium">Difficulty</label>
+            <Slider
+              id="difficulty"
+              min={1}
+              max={10}
+              step={1}
+              value={[selectedDifficulty]}
+              onValueChange={(value) => setSelectedDifficulty(value[0])}
+            />
+            <div className="flex justify-between text-sm text-gray-500">
+              <span>Beginner</span>
+              <span>Expert</span>
+            </div>
+          </div>
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? 'Generating...' : 'Generate Podcast'}
+          </Button>
+        </form>
 
-function ChevronDownIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="m6 9 6 6 6-6" />
-    </svg>
-  )
-}
+        {loading && (
+          <div className="space-y-2">
+            <Progress value={progress} className="w-full" />
+            <p className="text-sm text-center">{progressStage}</p>
+          </div>
+        )}
 
-function DownloadIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-      <polyline points="7 10 12 15 17 10" />
-      <line x1="12" x2="12" y1="15" y2="3" />
-    </svg>
-  )
-}
-
-function CheckIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <polyline points="20 6 9 17 4 12" />
-    </svg>
+        {showPlayer && audioUrl && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Generated Podcast</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <PodcastPlayer
+                episode={{
+                  id: Date.now(),
+                  title: `Generated Podcast: ${topic}`,
+                  duration: '5:00',
+                  subject: selectedSubject,
+                  transcript: transcript
+                }}
+                isPlaying={false}
+                setIsPlaying={() => {}}
+                progress={0}
+                setProgress={() => {}}
+              />
+              <div className="flex space-x-2">
+                <Button variant="outline" onClick={() => {
+                  if (audioBlob) {
+                    const url = URL.createObjectURL(audioBlob)
+                    const a = document.createElement('a')
+                    a.href = url
+                    a.download = `Generated_Podcast_${topic}.mp3`
+                    document.body.appendChild(a)
+                    a.click()
+                    document.body.removeChild(a)
+                  }
+                }}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Download
+                </Button>
+                <Button variant="outline" onClick={handleSaveBookmark}>
+                  <BookmarkPlus className="mr-2 h-4 w-4" />
+                  Save to Bookmarks
+                </Button>
+                <Button variant="outline" onClick={copyTranscript} disabled={transcriptCopied}>
+                  {transcriptCopied ? <Check className="mr-2 h-4 w-4" /> : <Copy className="mr-2 h-4 w-4" />}
+                  {transcriptCopied ? 'Copied' : 'Copy Transcript'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </CardContent>
+    </Card>
   )
 }

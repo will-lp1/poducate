@@ -42,14 +42,14 @@ export async function POST(req: Request) {
         messages: [
           {
             role: "system",
-            content: "You are an expert podcast script writer that creates single host podcast scripts, about 50 characters in length. Get straight to the point to optimise for learning. Little to no preamble or introduction. Just get into the topic."
+            content: "You are an expert podcast script writer that creates single host podcast scripts, about 750 words in length. Get straight to the point to optimise for learning. Minimal preamble or introduction. Focus on delivering valuable content about the topic."
           },
           {
             role: "user",
             content: `Create a podcast script about ${topic} in the style of ${style} at difficulty level ${difficulty}/10. Subject: ${subject} without any interruptions, speaker labels, or audio cues.`
           }
         ],
-        max_tokens: 30
+        max_tokens: 1000
       })
     ]);
 
@@ -78,7 +78,6 @@ export async function POST(req: Request) {
     return new NextResponse(responseStream, {
       headers: {
         'Content-Type': 'application/octet-stream',
-        'Transfer-Encoding': 'chunked',
       },
     });
 
