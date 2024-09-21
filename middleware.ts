@@ -17,7 +17,12 @@ export async function middleware(req: NextRequest) {
 
   // Redirect to dashboard if authenticated and trying to access auth page
   if (session && isAuthPage) {
-    return NextResponse.redirect(new URL('/dashboard', req.url))
+    return NextResponse.redirect('https://app.trypoducate.com/dashboard')
+  }
+
+  // Redirect unauthenticated users to auth page for dashboard access
+  if (!session && isDashboardPage) {
+    return NextResponse.redirect('https://app.trypoducate.com/auth')
   }
 
   // For all other routes, allow the request to proceed

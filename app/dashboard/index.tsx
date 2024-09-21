@@ -202,7 +202,7 @@ export default function Component() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/dashboard`
+        redirectTo: 'https://app.trypoducate.com/dashboard'
       }
     })
     if (error) console.error('Error signing in:', error)
