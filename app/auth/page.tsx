@@ -30,8 +30,15 @@ export default function AuthPage() {
     e.preventDefault()
     setLoading(true)
     setError(null)
-    const { error } = await supabase.auth.signUp({ email, password })
+    const { error } = await supabase.auth.signUp({ 
+      email, 
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`
+      }
+    })
     if (error) setError(error.message)
+    else router.push('/dashboard')
     setLoading(false)
   }
 
@@ -41,6 +48,7 @@ export default function AuthPage() {
     setError(null)
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) setError(error.message)
+    else router.push('/dashboard')
     setLoading(false)
   }
 
