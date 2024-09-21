@@ -1,15 +1,27 @@
-"use client"
+import { createClient } from '@supabase/supabase-js'
+import { cookies } from 'next/headers'
 
-import React from 'react'
-import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+export default async function Page() {
+  const cookieStore = cookies()
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value
+        },
+      },
+    }
+  )
 
-export default function Page() {
-  const router = useRouter()
+  const { data: todos } = await supabase.from('todos').select()
 
-  useEffect(() => {
-    router.push('/dashboard')
-  }, [router])
-
-  return null
+  return (
+    <ul>
+      {todos?.map((todo) => (
+        <li key={todo.id}>{todo.title}</li>
+      ))}
+    </ul>
+  )
 }
