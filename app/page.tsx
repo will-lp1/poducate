@@ -1,25 +1,15 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 
 export default async function Page() {
   const cookieStore = cookies()
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value
-        },
-      },
-    }
-  )
+  const supabase = createClientComponentClient()
 
   const { data: todos } = await supabase.from('todos').select()
 
   return (
     <ul>
-      {todos?.map((todo) => (
+      {todos?.map((todo: any) => (
         <li key={todo.id}>{todo.title}</li>
       ))}
     </ul>
