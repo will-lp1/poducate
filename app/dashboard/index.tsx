@@ -183,26 +183,26 @@ export default function Component() {
   const router = useRouter()
 
   useEffect(() => {
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      setUser(user)
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null)
       setLoading(false)
-    }
+    })
 
-    getUser()
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null)
+      setLoading(false)
+    })
+
+    return () => {
+      authListener?.subscription.unsubscribe()
+    }
   }, [supabase.auth])
-
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push('/auth')
-    }
-  }, [user, loading, router])
 
   const signIn = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: 'https://app.trypoducate.com/dashboard'
+        redirectTo: `${window.location.origin}/dashboard`
       }
     })
     if (error) console.error('Error signing in:', error)
@@ -213,7 +213,7 @@ export default function Component() {
     if (error) {
       console.error('Error signing out:', error)
     } else {
-      window.location.href = 'https://trypoducate.com/home'
+      router.push('/auth')
     }
   }
 
@@ -381,7 +381,11 @@ export default function Component() {
   }
 
   if (!user) {
-    return null
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Button onClick={signIn}>Sign In with Google</Button>
+      </div>
+    )
   }
 
   return (
