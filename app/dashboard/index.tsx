@@ -17,7 +17,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { motion, AnimatePresence } from "framer-motion"
-import { Search, Home, Bookmark, Wand2, MessageCircle, Minimize2, Maximize2, Sparkles, ArrowRight, BookOpen, BrainCircuit, Trophy, Star, Zap, Headphones, Copy, Check, X, BookmarkPlus, ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react'
+import { Search, Home, Bookmark, Wand2, MessageCircle, Minimize2, Maximize2, Sparkles, ArrowRight, BookOpen, BrainCircuit, Trophy, Star, Zap, Headphones, Copy, Check, X, BookmarkPlus, ArrowLeft, ChevronDown, ChevronUp, Menu } from 'lucide-react'
 import PodcastPlayer from "@/components/PodcastPlayer"
 import { Episode } from "@/types/podcast"
 import { Slider } from "@/components/ui/slider"
@@ -187,6 +187,7 @@ export default function Dashboard() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [isRecentlyListenedExpanded, setIsRecentlyListenedExpanded] = useState(true);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const lastMessageRef = useRef<HTMLDivElement>(null);
@@ -449,6 +450,524 @@ export default function Dashboard() {
     )
   }
 
+  return (
+    <>
+      <div className="flex flex-col h-screen bg-gray-100">
+        {/* Mobile Header */}
+        <header className="bg-white p-4 shadow-md flex justify-between items-center md:hidden">
+          <Image
+            src="/Vector.svg"
+            alt="Dashboard Logo"
+            width={100}
+            height={30}
+          />
+          <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+            <Menu className="h-6 w-6" />
+          </Button>
+        </header>
+
+        <div className="flex flex-1 overflow-hidden">
+          {/* Sidebar (hidden on mobile) */}
+          <aside className="w-64 bg-white p-4 shadow-md flex-col hidden md:flex">
+            <div className="mb-6">
+              <Image
+                src="/Vector.svg"
+                alt="Dashboard Logo"
+                width={150}
+                height={50}
+                className="ml-0"
+              />
+            </div>
+            <nav className="space-y-2 flex-grow mb-4">
+              <Button
+                variant={activeTab === "home" ? "default" : "ghost"}
+                className="w-full justify-start"
+                onClick={() => {
+                  setActiveTab("home")
+                  setShowGenerator(false)
+                }}
+              >
+                <Home className="mr-2 h-4 w-4" />
+                Home
+              </Button>
+              <Button
+                variant={activeTab === "bookmarks" ? "default" : "ghost"}
+                className="w-full justify-start"
+                onClick={() => {
+                  setActiveTab("bookmarks")
+                  setShowGenerator(false)
+                }}
+              >
+                <Bookmark className="mr-2 h-4 w-4" />
+                Bookmarks
+              </Button>
+              <Button
+                variant={activeTab === "generator" ? "default" : "ghost"}
+                className="w-full justify-start"
+                onClick={() => {
+                  setActiveTab("generator")
+                  setShowGenerator(true)
+                }}
+              >
+                <Wand2 className="mr-2 h-4 w-4" />
+                Generator
+              </Button>
+            </nav>
+            <Button onClick={signOut} variant="outline">Sign Out</Button>
+
+            {/* Sidebar player */}
+            <AnimatePresence>
+              {currentEpisode && !isLightboxOpen && (
+                <motion.div
+                  layoutId="player-container"
+                  initial={{ opacity: 0, y: 50 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 50 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                  className="bg-white p-4 border-t border-gray-200 shadow-lg rounded-2xl"
+                >
+                  <motion.div layoutId="player-content" className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 mr-2 overflow-hidden">
+                        <p className="text-sm font-semibold truncate">{currentEpisode.title}</p>
+                        <p className="text-xs text-gray-500 truncate">{currentEpisode.subject}</p>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => setIsLightboxOpen(true)} 
+                        className="flex-shrink-0"
+                      >
+                        <Maximize2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <motion.div layoutId="player-controls">
+                      <PodcastPlayer
+                        episode={currentEpisode}
+                        isPlaying={isPlaying}
+                        setIsPlaying={setIsPlaying}
+                        progress={progress}
+                        setProgress={setProgress}
+                        compact={true}
+                      />
+                    </motion.div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </aside>
+
+          {/* Mobile Menu */}
+          <AnimatePresence>
+            {isMobileMenuOpen && (
+              <motion.div
+                initial={{ x: '-100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '-100%' }}
+                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                className="fixed inset-y-0 left-0 w-64 bg-white p-4 shadow-md z-50 md:hidden"
+              >
+                {/* ... mobile menu content (same as sidebar) ... */}
+                <Button onClick={() => setIsMobileMenuOpen(false)} variant="ghost" className="absolute top-4 right-4">
+                  <X className="h-6 w-6" />
+                </Button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Main content */}
+          <main className="flex-1 p-6 overflow-auto">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsContent value="home" className="mt-0 space-y-6">
+                {/* Search bar */}
+                <div className="max-w-md mx-auto">
+                  <Input
+                    type="search"
+                    placeholder="Search podcasts..."
+                    className="w-full"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+
+                {/* Subject cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {subjects.map((subject) => (
+                    <Card
+                      key={subject.name}
+                      className={`${subject.color} text-white cursor-pointer hover:opacity-90 transition-all duration-300 transform hover:scale-105 relative overflow-hidden group`}
+                      onClick={() => subject.available && handleSubjectClick(subject.name)}
+                    >
+                      <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
+                      <CardHeader>
+                        <CardTitle className="flex items-center justify-between">
+                          <span className="flex items-center">
+                            <span className="text-4xl mr-3">{subject.icon}</span>
+                            {subject.name}
+                          </span>
+                          {!subject.available && (
+                            <Badge variant="secondary" className="bg-white bg-opacity-80 text-gray-800 animate-pulse shadow-md backdrop-blur-sm">
+                              <Sparkles className="w-3 h-3 mr-1 text-yellow-500" />
+                              <span className="font-semibold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-600">
+                                Coming Soon
+                              </span>
+                            </Badge>
+                          )}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm opacity-90">Explore {subject.name.toLowerCase()} podcasts</p>
+                      </CardContent>
+                      <div className="absolute bottom-0 right-0 p-4">
+                        <span className="text-6xl opacity-10 transition-opacity duration-300 group-hover:opacity-20">{subject.icon}</span>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </TabsContent>
+              <TabsContent value="bookmarks" className="mt-0">
+                <BookmarkPage
+                  bookmarks={bookmarks}
+                  setCurrentEpisode={setCurrentEpisode}
+                  onExplain={handleBookmarkExplain}
+                  onQuiz={handleBookmarkQuiz}
+                />
+              </TabsContent>
+              <TabsContent value="generator" className="mt-0">
+                <div className="max-w-2xl mx-auto">
+                  <PoducateGenerator setBookmarks={setBookmarks} />
+                </div>
+              </TabsContent>
+            </Tabs>
+          </main>
+        </div>
+
+        {/* Mobile Player */}
+        <AnimatePresence>
+          {currentEpisode && !isLightboxOpen && (
+            <motion.div
+              layoutId="player-container"
+              initial={{ opacity: 0, y: 50 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 50 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="bg-white p-4 border-t border-gray-200 shadow-lg md:hidden"
+            >
+              <motion.div layoutId="player-content" className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1 mr-2 overflow-hidden">
+                    <p className="text-sm font-semibold truncate">{currentEpisode.title}</p>
+                    <p className="text-xs text-gray-500 truncate">{currentEpisode.subject}</p>
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setIsLightboxOpen(true)} 
+                    className="flex-shrink-0"
+                  >
+                    <Maximize2 className="h-4 w-4" />
+                  </Button>
+                </div>
+                <motion.div layoutId="player-controls">
+                  <PodcastPlayer
+                    episode={currentEpisode}
+                    isPlaying={isPlaying}
+                    setIsPlaying={setIsPlaying}
+                    progress={progress}
+                    setProgress={setProgress}
+                    compact={true}
+                  />
+                </motion.div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Chatbot */}
+      <div className="fixed bottom-4 right-4 z-30">
+        <AnimatePresence>
+          {isChatOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              transition={{ duration: 0.2 }}
+            >
+              <Card className="w-96 shadow-lg">
+                <CardHeader className="flex flex-row items-center justify-between bg-gradient-to-r from-[#3bffa1] to-[#9544ff] text-white rounded-t-lg p-4">
+                  <div className="flex items-center space-x-2">
+                    <Sparkles className="h-5 w-5" />
+                    <CardTitle className="text-lg">Podugenius</CardTitle>
+                  </div>
+                  {chatAction === 'quiz' && totalQuestions > 0 && (
+                    <div className="text-sm font-semibold bg-white bg-opacity-20 px-2 py-1 rounded-full">
+                      Accuracy: {quizAccuracy.toFixed(1)}% ({correctAnswers}/{totalQuestions})
+                    </div>
+                  )}
+                  <Button variant="ghost" size="icon" onClick={() => setIsChatOpen(false)} className="text-white hover:text-gray-200">
+                    <X className="h-4 w-4" />
+                  </Button>
+                </CardHeader>
+                <CardContent className="p-4 flex flex-col h-[500px]">
+                  <ScrollArea className="flex-grow mb-4 pr-4" ref={chatContainerRef}>
+                    <div className="space-y-4">
+                      {chatMessages.map((msg, index) => (
+                        <div 
+                          key={index} 
+                          className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                          ref={index === chatMessages.length - 1 ? lastMessageRef : null}
+                        >
+                          <div className={`max-w-[80%] p-3 rounded-lg ${
+                            msg.role === 'user'
+                              ? 'bg-blue-500 text-white'
+                              : msg.role === 'assistant'
+                                ? msg.content.includes('Correct!')
+                                  ? 'bg-green-100 border border-green-300'
+                                  : msg.content.includes('Incorrect')
+                                    ? 'bg-red-100 border border-red-300'
+                                    : 'bg-gray-100 border border-gray-300'
+                                : 'bg-gray-100 border border-gray-300'
+                          }`}>
+                            <p className="text-sm">{msg.content}</p>
+                            {msg.isQuestion && msg.options && (
+                              <div className="mt-3 space-y-2">
+                                {msg.options.map((option, optionIndex) => (
+                                  <Button
+                                    key={optionIndex}
+                                    onClick={() => handleQuizAnswer(String(optionIndex), msg.correctAnswer || '', msg.explanation || '')}
+                                    className="w-full text-left justify-start h-auto py-2 px-3"
+                                    variant="outline"
+                                    disabled={msg.answered}
+                                  >
+                                    <span className="font-semibold mr-2">{String.fromCharCode(65 + optionIndex)}.</span> {option}
+                                  </Button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      {isAiTyping && (
+                        <div className="flex justify-start" ref={lastMessageRef}>
+                          <div className="max-w-[80%] p-3 rounded-lg bg-gray-100 border border-gray-300">
+                            <motion.div
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              transition={{ repeat: Infinity, duration: 0.8, ease: "easeInOut" }}
+                              className="flex items-center space-x-1"
+                            >
+                              <div className="w-2 h-2 bg-gray-500 rounded-full" />
+                              <div className="w-2 h-2 bg-gray-500 rounded-full" />
+                              <div className="w-2 h-2 bg-gray-500 rounded-full" />
+                            </motion.div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </ScrollArea>
+                  
+                  <div className="mt-auto">
+                    <div 
+                      className="flex items-center justify-between cursor-pointer mb-2"
+                      onClick={() => setIsRecentlyListenedExpanded(!isRecentlyListenedExpanded)}
+                    >
+                      <h4 className="text-sm font-semibold">Recently Listened</h4>
+                      <Button variant="ghost" size="sm">
+                        {isRecentlyListenedExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                    
+                    <AnimatePresence>
+                      {isRecentlyListenedExpanded && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.3 }}
+                          className="overflow-hidden"
+                        >
+                          {recentlyListened.length > 0 ? (
+                            recentlyListened.map((episode) => (
+                              <div key={episode.id} className="flex justify-between items-center mb-2">
+                                <span className="text-sm truncate mr-2">{episode.title}</span>
+                                <div>
+                                  <Button variant="outline" size="sm" className="mr-1" onClick={() => handleBookmarkExplain(episode)}>
+                                    <BookOpen className="h-3 w-3" />
+                                  </Button>
+                                  <Button variant="outline" size="sm" onClick={() => handleBookmarkQuiz(episode)}>
+                                    <BrainCircuit className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="text-center py-4">
+                              <Headphones className="mx-auto h-12 w-12 text-gray-400 mb-2" />
+                              <p className="text-sm text-gray-500">No episodes listened to yet.</p>
+                              <p className="text-xs text-gray-400">Start listening to see your recent episodes here!</p>
+                            </div>
+                          )}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  <div className="flex items-center space-x-2 mt-4">
+                    <Input
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      placeholder="Ask me anything!"
+                      onKeyPress={(e) => e.key === 'Enter' && handleChatSubmit()}
+                      className="flex-1"
+                    />
+                    <Button onClick={(e) => handleChatSubmit()} disabled={isAiTyping}>
+                      {isAiTyping ? (
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                        >
+                          <BrainCircuit className="h-4 w-4" />
+                        </motion.div>
+                      ) : (
+                        "Send"
+                      )}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        {!isChatOpen && (
+          <Button onClick={() => setIsChatOpen(true)} className="rounded-full w-12 h-12 p-0 bg-gradient-to-r from-[#3bffa1] to-[#9544ff] hover:from-[#32d989] hover:to-[#7e3ad9]">
+            <MessageCircle className="h-6 w-6" />
+          </Button>
+        )}
+      </div>
+
+      {/* Episodes and Player Lightbox */}
+      <AnimatePresence>
+        {isLightboxOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="bg-white rounded-lg p-6 max-w-3xl w-full shadow-2xl max-h-[90vh] overflow-auto"
+            >
+              {selectedSubject ? (
+                <div>
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-2xl font-bold">{selectedSubject} Episodes</h3>
+                    <Button variant="ghost" size="icon" onClick={closeLightbox}>
+                      <Minimize2 className="h-6 w-6" />
+                    </Button>
+                  </div>
+                  <ScrollArea className="h-[400px] mb-4">
+                    {episodes.filter(episode => episode.subject === selectedSubject).map((episode) => (
+                      <div
+                        key={episode.id}
+                        className="flex justify-between items-center py-2 border-b cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleEpisodeClick(episode)}
+                      >
+                        <span>{episode.title}</span>
+                        <span className="text-sm text-gray-500">{episode.duration}</span>
+                      </div>
+                    ))}
+                  </ScrollArea>
+                </div>
+              ) : currentEpisode ? (
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center mb-6">
+                    <div className="flex items-center">
+                      <Button variant="ghost" size="icon" onClick={handleBackToEpisodes} className="mr-2">
+                        <ArrowLeft className="h-6 w-6" />
+                      </Button>
+                      <div>
+                        <h3 className="text-2xl font-bold">{currentEpisode.title}</h3>
+                        <p className="text-sm text-gray-500">{currentEpisode.subject}</p>
+                      </div>
+                    </div>
+                    <Button variant="ghost" size="icon" onClick={closeLightbox}>
+                      <Minimize2 className="h-6 w-6" />
+                    </Button>
+                  </div>
+                  <div className="bg-gray-100 p-6 rounded-lg mb-6">
+                    <PodcastPlayer 
+                      episode={currentEpisode} 
+                      isPlaying={isPlaying}
+                      setIsPlaying={setIsPlaying}
+                      progress={progress}
+                      setProgress={setProgress}
+                      compact={false}
+                    />
+                  </div>
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <Button 
+                        onClick={handleSaveBookmark} 
+                        variant="outline" 
+                        className="w-full mr-2 relative"
+                        disabled={savedBookmark}
+                      >
+                        <BookmarkPlus className="mr-2 h-5 w-5" />
+                        Save to Bookmarks
+                        {savedBookmark && (
+                          <motion.div
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            exit={{ scale: 0 }}
+                            className="absolute inset-0 flex items-center justify-center bg-green-500 text-white rounded"
+                          >
+                            <Check className="h-5 w-5" />
+                          </motion.div>
+                        )}
+                      </Button>
+                      <Button 
+                        onClick={() => handleCopyTranscript(currentEpisode.transcript)} 
+                        variant="outline" 
+                        className="w-full ml-2 relative"
+                        disabled={copiedTranscript}
+                      >
+                        <Copy className="mr-2 h-5 w-5" />
+                        Copy Transcript
+                        {copiedTranscript && (
+                          <motion.div
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            exit={{ scale: 0 }}
+                            className="absolute inset-0 flex items-center justify-center bg-green-500 text-white rounded"
+                          >
+                            <Check className="h-5 w-5" />
+                          </motion.div>
+                        )}
+                      </Button>
+                    </div>
+                    <div className="bg-gray-100 p-4 rounded-lg max-h-40 overflow-y-auto">
+                      <h4 className="text-lg font-semibold mb-2">Transcript Preview</h4>
+                      <p className="text-sm text-gray-700">{currentEpisode.transcript.slice(0, 300)}...</p>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Bookmark Saved Popup */}
+      <AnimatePresence>
+        {showBookmarkPopup && (
+          <motion.div 
+            initial={{ opacity: 0, y: 50 }}
   return (
     <>
       <div className="flex h-screen bg-gray-100">
@@ -745,7 +1264,7 @@ export default function Dashboard() {
                         onKeyPress={(e) => e.key === 'Enter' && handleChatSubmit()}
                         className="flex-1"
                       />
-                      <Button onClick={handleChatSubmit} disabled={isAiTyping}>
+                      <Button onClick={(e) => handleChatSubmit()} disabled={isAiTyping}>
                         {isAiTyping ? (
                           <motion.div
                             animate={{ rotate: 360 }}
