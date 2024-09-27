@@ -188,6 +188,9 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [isRecentlyListenedExpanded, setIsRecentlyListenedExpanded] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [allEpisodes, setAllEpisodes] = useState<Episode[]>([])
+  const [filteredEpisodes, setFilteredEpisodes] = useState<Episode[]>([])
+  const [searchSuggestions, setSearchSuggestions] = useState<string[]>([])
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const lastMessageRef = useRef<HTMLDivElement>(null);
@@ -438,6 +441,42 @@ export default function Dashboard() {
     localStorage.setItem('hasSeenIntroGuide', 'true')
   }
 
+  useEffect(() => {
+    // Fetch all episodes when the component mounts
+    fetchEpisodes()
+  }, [])
+
+  const fetchEpisodes = async () => {
+    try {
+      const response = await axios.get('/api/episodes')
+      setAllEpisodes(response.data)
+      setFilteredEpisodes(response.data)
+    } catch (error) {
+      console.error('Error fetching episodes:', error)
+    }
+  }
+
+  const handleSearch = (query: string) => {
+    setSearchQuery(query)
+    if (query.trim() === '') {
+      setFilteredEpisodes(allEpisodes)
+      setSearchSuggestions([])
+    } else {
+      const filtered = allEpisodes.filter(episode =>
+        episode.title.toLowerCase().includes(query.toLowerCase()) ||
+        episode.subject.toLowerCase().includes(query.toLowerCase())
+      )
+      setFilteredEpisodes(filtered)
+
+      // Generate search suggestions
+      const suggestions = Array.from(new Set(
+        filtered.map(episode => episode.title)
+          .concat(filtered.map(episode => episode.subject))
+      )).slice(0, 5)
+      setSearchSuggestions(suggestions)
+    }
+  }
+
   if (loading) {
     return <div>Loading...</div>
   }
@@ -575,50 +614,56 @@ export default function Dashboard() {
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsContent value="home" className="mt-0 space-y-6">
                 {/* Search bar */}
-                <div className="max-w-md mx-auto">
+                <div className="max-w-md mx-auto relative">
                   <Input
                     type="search"
                     placeholder="Search podcasts..."
                     className="w-full"
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={(e) => handleSearch(e.target.value)}
                   />
+                  {searchSuggestions.length > 0 && (
+                    <ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-1">
+                      {searchSuggestions.map((suggestion, index) => (
+                        <li
+                          key={index}
+                          className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                          onClick={() => handleSearch(suggestion)}
+                        >
+                          {suggestion}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
 
-                {/* Subject cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {subjects.map((subject) => (
-                    <Card
-                      key={subject.name}
-                      className={`${subject.color} text-white cursor-pointer hover:opacity-90 transition-all duration-300 transform hover:scale-105 relative overflow-hidden group`}
-                      onClick={() => subject.available && handleSubjectClick(subject.name)}
-                    >
-                      <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
+                {/* Episode list */}
+                <ScrollArea className="h-[calc(100vh-200px)]">
+                  {filteredEpisodes.map((episode) => (
+                    <Card key={episode.id} className="mb-4">
                       <CardHeader>
-                        <CardTitle className="flex items-center justify-between">
-                          <span className="flex items-center">
-                            <span className="text-4xl mr-3">{subject.icon}</span>
-                            {subject.name}
-                          </span>
-                          {!subject.available && (
-                            <Badge variant="secondary" className="bg-white bg-opacity-80 text-gray-800 animate-pulse shadow-md backdrop-blur-sm">
-                              <Sparkles className="w-3 h-3 mr-1 text-yellow-500" />
-                              <span className="font-semibold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-600">
-                                Coming Soon
-                              </span>
-                            </Badge>
-                          )}
-                        </CardTitle>
+                        <CardTitle className="text-lg">{episode.title}</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <p className="text-sm opacity-90">Explore {subject.name.toLowerCase()} podcasts</p>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-500">{episode.duration}</span>
+                          <Badge>{episode.subject}</Badge>
+                          <div className="space-x-2">
+                            <Button onClick={() => handleEpisodeClick(episode)}>Play</Button>
+                            <Button variant="outline" onClick={() => handleBookmarkExplain(episode)}>
+                              <BookOpen className="mr-2 h-4 w-4" />
+                              Explain
+                            </Button>
+                            <Button variant="outline" onClick={() => handleBookmarkQuiz(episode)}>
+                              <BrainCircuit className="mr-2 h-4 w-4" />
+                              Quiz
+                            </Button>
+                          </div>
+                        </div>
                       </CardContent>
-                      <div className="absolute bottom-0 right-0 p-4">
-                        <span className="text-6xl opacity-10 transition-opacity duration-300 group-hover:opacity-20">{subject.icon}</span>
-                      </div>
                     </Card>
                   ))}
-                </div>
+                </ScrollArea>
               </TabsContent>
               <TabsContent value="bookmarks" className="mt-0">
                 <BookmarkPage
