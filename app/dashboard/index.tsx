@@ -190,6 +190,7 @@ export default function Dashboard() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [filteredEpisodes, setFilteredEpisodes] = useState<Episode[]>(episodes)
   const [searchSuggestions, setSearchSuggestions] = useState<string[]>([])
+  const [searchResults, setSearchResults] = useState<Episode[]>([]);
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const lastMessageRef = useRef<HTMLDivElement>(null);
@@ -441,24 +442,32 @@ export default function Dashboard() {
   }
 
   const handleSearch = (query: string) => {
-    setSearchQuery(query)
+    setSearchQuery(query);
     if (query.trim() === '') {
-      setFilteredEpisodes(episodes)
-      setSearchSuggestions([])
+      setSearchResults([]);
+      setSearchSuggestions([]);
     } else {
       const filtered = episodes.filter(episode =>
         episode.title.toLowerCase().includes(query.toLowerCase()) ||
         episode.subject.toLowerCase().includes(query.toLowerCase())
-      )
-      setFilteredEpisodes(filtered)
+      );
+      setSearchResults(filtered);
 
       const suggestions = Array.from(new Set(
         filtered.map(episode => episode.title)
           .concat(filtered.map(episode => episode.subject))
-      )).slice(0, 5)
-      setSearchSuggestions(suggestions)
+      )).slice(0, 5);
+      setSearchSuggestions(suggestions);
     }
-  }
+  };
+
+  const handleSearchResultClick = (episode: Episode) => {
+    setCurrentEpisode(episode);
+    setIsLightboxOpen(true);
+    setSearchQuery('');
+    setSearchResults([]);
+    setSearchSuggestions([]);
+  };
 
   if (loading) {
     return <div>Loading...</div>
@@ -661,20 +670,56 @@ export default function Dashboard() {
                   )}
                 </div>
 
+                {/* Search Results */}
+                {searchResults.length > 0 && (
+                  <div className="mt-4">
+                    <h3 className="text-lg font-semibold mb-2">Search Results</h3>
+                    <ScrollArea className="h-[200px]">
+                      {searchResults.map((episode) => (
+                        <div
+                          key={episode.id}
+                          className="flex justify-between items-center py-2 border-b cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleSearchResultClick(episode)}
+                        >
+                          <span>{episode.title}</span>
+                          <span className="text-sm text-gray-500">{episode.subject}</span>
+                        </div>
+                      ))}
+                    </ScrollArea>
+                  </div>
+                )}
+
                 {/* Subject cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                   {subjects.map((subject) => (
                     <Card
                       key={subject.name}
-                      className={`${subject.color} text-white cursor-pointer hover:opacity-90 transition-all duration-300 transform hover:scale-105`}
+                      className={`${subject.color} text-white cursor-pointer hover:opacity-90 transition-all duration-300 transform hover:scale-105 relative overflow-hidden group`}
                       onClick={() => subject.available && handleSubjectClick(subject.name)}
                     >
+                      <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
                       <CardHeader>
-                        <CardTitle className="text-2xl">{subject.name}</CardTitle>
+                        <CardTitle className="flex items-center justify-between">
+                          <span className="flex items-center">
+                            <span className="text-4xl mr-3">{subject.icon}</span>
+                            {subject.name}
+                          </span>
+                          {!subject.available && (
+                            <Badge variant="secondary" className="bg-white bg-opacity-80 text-gray-800 animate-pulse shadow-md backdrop-blur-sm">
+                              <Sparkles className="w-3 h-3 mr-1 text-yellow-500" />
+                              <span className="font-semibold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-600">
+                                Coming Soon
+                              </span>
+                            </Badge>
+                          )}
+                        </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <p className="text-4xl">{subject.icon}</p>
+                        <p className="text-sm opacity-90">Explore {subject.name.toLowerCase()} podcasts</p>
                       </CardContent>
+                      <div className="absolute bottom-0 right-0 p-4">
+                        <span className="text-6xl opacity-10 transition-opacity duration-300 group-hover:opacity-20">{subject.icon}</span>
+                      </div>
                     </Card>
                   ))}
                 </div>
