@@ -646,7 +646,7 @@ export default function Dashboard() {
           <main className="flex-1 p-6 overflow-auto">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsContent value="home" className="mt-0 space-y-6">
-                {/* Search bar */}
+                {/* Search bar and results */}
                 <div className="max-w-md mx-auto relative">
                   <Input
                     type="search"
@@ -655,39 +655,30 @@ export default function Dashboard() {
                     value={searchQuery}
                     onChange={(e) => handleSearch(e.target.value)}
                   />
-                  {searchSuggestions.length > 0 && (
-                    <ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-1">
+                  {(searchSuggestions.length > 0 || searchResults.length > 0) && (
+                    <ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-1 max-h-[300px] overflow-y-auto">
                       {searchSuggestions.map((suggestion, index) => (
                         <li
-                          key={index}
+                          key={`suggestion-${index}`}
                           className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
                           onClick={() => handleSearch(suggestion)}
                         >
                           {suggestion}
                         </li>
                       ))}
-                    </ul>
-                  )}
-                </div>
-
-                {/* Search Results */}
-                {searchResults.length > 0 && (
-                  <div className="mt-4">
-                    <h3 className="text-lg font-semibold mb-2">Search Results</h3>
-                    <ScrollArea className="h-[200px]">
                       {searchResults.map((episode) => (
-                        <div
-                          key={episode.id}
-                          className="flex justify-between items-center py-2 border-b cursor-pointer hover:bg-gray-100"
+                        <li
+                          key={`result-${episode.id}`}
+                          className="flex justify-between items-center px-4 py-2 hover:bg-gray-100 cursor-pointer"
                           onClick={() => handleSearchResultClick(episode)}
                         >
                           <span>{episode.title}</span>
                           <span className="text-sm text-gray-500">{episode.subject}</span>
-                        </div>
+                        </li>
                       ))}
-                    </ScrollArea>
-                  </div>
-                )}
+                    </ul>
+                  )}
+                </div>
 
                 {/* Subject cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
