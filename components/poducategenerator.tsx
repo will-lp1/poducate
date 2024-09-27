@@ -11,6 +11,7 @@ import { Episode } from "@/types/podcast"
 import PodcastPlayer from "./PodcastPlayer"
 import { Download, BookmarkPlus, Copy, Check } from 'lucide-react'
 import axios from 'axios'
+import { Textarea } from "./ui/textarea"
 
 const predefinedSubjects = ["Technology", "Science", "History", "Arts", "Business", "Health"]
 const styles = ["Quick Bites", "Deep Dives", "Story Time", "Key Ideas Explained", "Casual Conversations", "Big Picture View", "Beginner's Guide"]
@@ -29,6 +30,8 @@ export default function PoducateGenerator({ setBookmarks }: { setBookmarks: Reac
   const [transcriptCopied, setTranscriptCopied] = useState(false)
   const [showPlayer, setShowPlayer] = useState(false)
   const [customSubject, setCustomSubject] = useState("")
+  const [context, setContext] = useState("")
+  const [contextAdded, setContextAdded] = useState(false)
 
   const calculateAudioDuration = (audioBlob: Blob): Promise<string> => {
     return new Promise((resolve) => {
@@ -61,7 +64,8 @@ export default function PoducateGenerator({ setBookmarks }: { setBookmarks: Reac
         topic,
         subject: subjectToUse,
         style: selectedStyle,
-        difficulty: selectedDifficulty
+        difficulty: selectedDifficulty,
+        context // Add the context to the API call
       }, {
         responseType: 'arraybuffer',
         onDownloadProgress: (progressEvent) => {
@@ -98,6 +102,7 @@ export default function PoducateGenerator({ setBookmarks }: { setBookmarks: Reac
       alert('Failed to generate podcast. Please try again.')
     } finally {
       setLoading(false)
+      setContextAdded(false) // Reset context added state after generation
     }
   }
 
@@ -119,6 +124,13 @@ export default function PoducateGenerator({ setBookmarks }: { setBookmarks: Reac
       setBookmarks(prev => [...prev, newPodcast])
       alert('Podcast saved to bookmarks successfully!')
     }
+  }
+
+  const handleContextPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    e.preventDefault()
+    const pastedText = e.clipboardData.getData('text')
+    setContext(pastedText)
+    setContextAdded(true)
   }
 
   return (
@@ -189,6 +201,27 @@ export default function PoducateGenerator({ setBookmarks }: { setBookmarks: Reac
               <span>Expert</span>
             </div>
           </div>
+          <div className="space-y-2">
+            <label htmlFor="context" className="text-sm font-medium">Context (Optional)</label>
+            <div className="relative">
+              <Textarea
+                id="context"
+                placeholder="Right-click and paste or use Ctrl+V (Cmd+V on Mac) to add context..."
+                value={contextAdded ? "" : context}
+                onChange={(e) => setContext(e.target.value)}
+                onPaste={handleContextPaste}
+                rows={4}
+                className={contextAdded ? 'bg-gray-100' : ''}
+                readOnly={contextAdded}
+              />
+              {contextAdded && (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+                  <Check className="text-green-500 w-6 h-6" />
+                  <span className="ml-2">Context added</span>
+                </div>
+              )}
+            </div>
+          </div>
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? 'Generating...' : 'Generate Podcast'}
           </Button>
@@ -221,7 +254,7 @@ export default function PoducateGenerator({ setBookmarks }: { setBookmarks: Reac
                 setProgress={() => {}}
               />
               <div className="flex space-x-2">
-                <Button variant="outline" onClick={() => {
+                <Button onClick={() => {
                   if (audioBlob) {
                     const url = URL.createObjectURL(audioBlob)
                     const a = document.createElement('a')
@@ -235,11 +268,11 @@ export default function PoducateGenerator({ setBookmarks }: { setBookmarks: Reac
                   <Download className="mr-2 h-4 w-4" />
                   Download
                 </Button>
-                <Button variant="outline" onClick={handleSaveBookmark}>
+                <Button onClick={handleSaveBookmark}>
                   <BookmarkPlus className="mr-2 h-4 w-4" />
                   Save to Bookmarks
                 </Button>
-                <Button variant="outline" onClick={copyTranscript} disabled={transcriptCopied}>
+                <Button onClick={copyTranscript} disabled={transcriptCopied}>
                   {transcriptCopied ? <Check className="mr-2 h-4 w-4" /> : <Copy className="mr-2 h-4 w-4" />}
                   {transcriptCopied ? 'Copied' : 'Copy Transcript'}
                 </Button>

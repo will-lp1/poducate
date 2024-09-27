@@ -1,7 +1,3 @@
-"use client"
+import Dashboard from './index'
 
-import Component from '../dashboard'
-
-export default function DashboardPage() {
-  return <Component />
-}
+export default Dashboard

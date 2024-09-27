@@ -10,14 +10,14 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
-  DialogTitle,
+  DialogTitle,  
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { motion, AnimatePresence } from "framer-motion"
-import { Search, Home, Bookmark, Wand2, MessageCircle, Minimize2, Maximize2, Sparkles, ArrowRight, BookOpen, BrainCircuit, Trophy, Star, Zap, Headphones, Copy, Check, X, BookmarkPlus, ArrowLeft } from 'lucide-react'
+import { Search, Home, Bookmark, Wand2, MessageCircle, Minimize2, Maximize2, Sparkles, ArrowRight, BookOpen, BrainCircuit, Trophy, Star, Zap, Headphones, Copy, Check, X, BookmarkPlus, ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react'
 import PodcastPlayer from "@/components/PodcastPlayer"
 import { Episode } from "@/types/podcast"
 import { Slider } from "@/components/ui/slider"
@@ -27,6 +27,8 @@ import { Progress } from "@/components/ui/progress"
 import { RadioGroup, RadioGroupItem } from "@radix-ui/react-radio-group"
 import { Label } from "@radix-ui/react-label"
 import { useRouter } from 'next/navigation'
+import confetti from 'canvas-confetti'
+import Image from 'next/image'
 
 const subjects = [
   { name: "Technology", color: "bg-blue-500", icon: "🖥️", available: true },
@@ -60,6 +62,16 @@ const episodes = [
   { id: 17, title: "Sustainable Business Practices", duration: "45:00", subject: "Business", transcript: "This is a sample transcript for Sustainable Business Practices episode..." },
   { id: 18, title: "Sleep Science and Productivity", duration: "40:00", subject: "Health", transcript: "This is a sample transcript for Sleep Science and Productivity episode..." },
 ]
+
+type ChatMessage = {
+  answered: boolean | undefined
+  role: 'user' | 'assistant';
+  content: string;
+  isQuestion?: boolean;
+  options?: string[];
+  correctAnswer?: string;
+  explanation?: string;
+};
 
 function BookmarkPage({ bookmarks, setCurrentEpisode, onExplain, onQuiz }: {
   bookmarks: Episode[],
@@ -146,7 +158,7 @@ const formatTime = (progress: number, duration: string) => {
   return `${currentMinutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
 };
 
-export default function Component() {
+export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("home")
   const [isChatOpen, setIsChatOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
@@ -160,7 +172,7 @@ export default function Component() {
   const [showBookmarkPopup, setShowBookmarkPopup] = useState(false)
   const [copiedTranscript, setCopiedTranscript] = useState(false)
   const [savedBookmark, setSavedBookmark] = useState(false)
-  const [chatMessages, setChatMessages] = useState<Array<{ role: 'user' | 'assistant', content: string }>>([]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [isAiTyping, setIsAiTyping] = useState(false)
   const [chatAction, setChatAction] = useState<'explain' | 'quiz'>('explain')
@@ -174,6 +186,7 @@ export default function Component() {
   const [showIntroGuide, setShowIntroGuide] = useState(true)  // Set to true initially
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const [isRecentlyListenedExpanded, setIsRecentlyListenedExpanded] = useState(true);
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const lastMessageRef = useRef<HTMLDivElement>(null);
@@ -297,38 +310,78 @@ export default function Component() {
     setSelectedSubject(null)
   }
 
-  const handleChatSubmit = async () => {
-    if (!chatInput.trim() || !currentEpisode) return;
+  const handleQuizAnswer = (selectedAnswer: string, correctAnswer: string, explanation: string) => {
+    const isCorrect = selectedAnswer === correctAnswer;
+    setTotalQuestions(prev => prev + 1);
+    if (isCorrect) {
+      setCorrectAnswers(prev => prev + 1);
+      // Trigger confetti animation for correct answers
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 }
+      });
+    }
+    
+    // Update accuracy immediately after each answer
+    setQuizAccuracy(prevAccuracy => {
+      const newCorrectAnswers = isCorrect ? correctAnswers + 1 : correctAnswers;
+      const newTotalQuestions = totalQuestions + 1;
+      return (newCorrectAnswers / newTotalQuestions) * 100;
+    });
 
-    const newMessage = { role: 'user' as const, content: chatInput };
-    setChatMessages(prev => [...prev, newMessage]);
-    setChatInput('');
+    const resultMessage: ChatMessage = {
+      role: 'assistant', content: `${isCorrect ? '🎉 Correct!' : '❌ Incorrect.'} ${explanation}`,
+      answered: undefined
+    };
+    setChatMessages(prev => [...prev, resultMessage]);
+
+    // Add a delay before asking the next question
+    setTimeout(() => {
+      handleChatSubmit();
+    }, 3000);
+  };
+
+  const handleChatSubmit = async (message = chatInput, action = chatAction) => {
+    if (!currentEpisode) return;
+
     setIsAiTyping(true);
 
     try {
       const response = await axios.post('/api/podugenius', {
-        message: chatInput,
+        message: action === 'quiz' ? 'Generate a quiz question' : message,
         transcript: currentEpisode.transcript,
-        action: chatAction,
+        action: action,
         podcastTitle: currentEpisode.title
       });
 
       setIsAiTyping(false);
-      const aiResponse = { role: 'assistant' as const, content: response.data.response };
-      setChatMessages(prev => [...prev, aiResponse]);
 
-      if (chatAction === 'quiz' && response.data.isCorrect !== undefined) {
-        setTotalQuestions(prev => prev + 1);
-        if (response.data.isCorrect) {
-          setCorrectAnswers(prev => prev + 1);
-        }
-        setQuizAccuracy((correctAnswers / totalQuestions) * 100);
+      if (action === 'quiz' && response.data.isQuestion) {
+        const quizMessage: ChatMessage = {
+          role: 'assistant',
+          content: response.data.response,
+          options: response.data.options,
+          correctAnswer: response.data.correctAnswer,
+          explanation: response.data.explanation,
+          isQuestion: true,
+          answered: undefined
+        };
+        setChatMessages(prev => [...prev, quizMessage]);
+      } else {
+        const aiResponse: ChatMessage = {
+          role: 'assistant',
+          content: response.data.response,
+          answered: undefined
+        };
+        setChatMessages(prev => [...prev, aiResponse]);
       }
 
+      setChatInput('');
     } catch (error) {
       console.error('Error sending message to Podugenius:', error);
       setIsAiTyping(false);
-      setChatMessages(prev => [...prev, { role: 'assistant', content: "Oops! I had a little hiccup. Can you try asking me again?" }]);
+      setChatMessages(prev => [...prev, { role: 'assistant', content: "Oops! I had a little hiccup. Can you try asking me again?", answered: undefined }]);
     }
   };
 
@@ -339,24 +392,32 @@ export default function Component() {
     });
   };
 
-  const handleBookmarkExplain = (bookmark: Episode) => {
-    setCurrentEpisode(bookmark);
+  const handleBookmarkExplain = (episode: Episode) => {
+    setCurrentEpisode(episode);
     setChatAction('explain');
     setChatMessages([
-      { role: 'assistant', content: `Hi there! I'm ready to explain "${bookmark.title}" to you. What would you like to know?` },
-      { role: 'assistant', content: "Here are some example questions you can ask:\n1. What are the main points of this podcast?\n2. Can you summarize the key concepts?\n3. How does this topic relate to real-world applications?" }
+      {
+        role: 'assistant',
+        content: `Hi there! I'm ready to explain "${episode.title}". What would you like to know?`,
+        answered: undefined
+      }
     ]);
     setIsChatOpen(true);
   };
 
-  const handleBookmarkQuiz = (bookmark: Episode) => {
-    setCurrentEpisode(bookmark);
+  const handleBookmarkQuiz = (episode: Episode) => {
+    setCurrentEpisode(episode);
     setChatAction('quiz');
     setChatMessages([
-      { role: 'assistant', content: `Get ready for a fun quiz on "${bookmark.title}"! Are you up for the challenge?` },
-      { role: 'assistant', content: "I'll ask you multiple-choice questions about the podcast. Just type the letter of your answer (A, B, C, or D). Let's begin!" }
+      {
+        role: 'assistant',
+        content: `Let's start a quiz on "${episode.title}". I'll ask multiple-choice questions about the podcast.`,
+        answered: undefined
+      }
     ]);
     setIsChatOpen(true);
+    // Trigger the first question immediately
+    handleChatSubmit('Start the quiz', 'quiz');
   };
 
   const handleBackToEpisodes = () => {
@@ -393,7 +454,15 @@ export default function Component() {
       <div className="flex h-screen bg-gray-100">
         {/* Sidebar */}
         <aside className="w-64 bg-white p-4 shadow-md flex flex-col">
-          <h1 className="text-2xl font-bold mb-6">Podcast Library</h1>
+          <div className="mb-6">
+            <Image
+              src="/Vector.svg"
+              alt="Dashboard Logo"
+              width={150}
+              height={50}
+              className="ml-0"
+            />
+          </div>
           <nav className="space-y-2 flex-grow mb-4">
             <Button
               variant={activeTab === "home" ? "default" : "ghost"}
@@ -550,22 +619,22 @@ export default function Component() {
                 transition={{ duration: 0.2 }}
               >
                 <Card className="w-96 shadow-lg">
-                  <CardHeader className="flex flex-row items-center justify-between bg-gradient-to-r from-[#3bffa1] to-[#9544ff] text-white rounded-t-lg">
-                    <CardTitle className="flex items-center">
-                      <Sparkles className="mr-2 h-5 w-5" />
-                      Podugenius
-                    </CardTitle>
-                    {chatAction === 'quiz' && (
-                      <div className="text-sm font-semibold">
-                        Accuracy: {quizAccuracy.toFixed(1)}%
+                  <CardHeader className="flex flex-row items-center justify-between bg-gradient-to-r from-[#3bffa1] to-[#9544ff] text-white rounded-t-lg p-4">
+                    <div className="flex items-center space-x-2">
+                      <Sparkles className="h-5 w-5" />
+                      <CardTitle className="text-lg">Podugenius</CardTitle>
+                    </div>
+                    {chatAction === 'quiz' && totalQuestions > 0 && (
+                      <div className="text-sm font-semibold bg-white bg-opacity-20 px-2 py-1 rounded-full">
+                        Accuracy: {quizAccuracy.toFixed(1)}% ({correctAnswers}/{totalQuestions})
                       </div>
                     )}
                     <Button variant="ghost" size="icon" onClick={() => setIsChatOpen(false)} className="text-white hover:text-gray-200">
                       <X className="h-4 w-4" />
                     </Button>
                   </CardHeader>
-                  <CardContent className="p-4">
-                    <ScrollArea className="h-[300px] mb-4 pr-4" ref={chatContainerRef}>
+                  <CardContent className="p-4 flex flex-col h-[500px]">
+                    <ScrollArea className="flex-grow mb-4 pr-4" ref={chatContainerRef}>
                       <div className="space-y-4">
                         {chatMessages.map((msg, index) => (
                           <div 
@@ -574,56 +643,101 @@ export default function Component() {
                             ref={index === chatMessages.length - 1 ? lastMessageRef : null}
                           >
                             <div className={`max-w-[80%] p-3 rounded-lg ${
-                              msg.role === 'user' 
-                                ? 'bg-blue-500 text-white' 
-                                : msg.content.includes('Correct!') 
-                                  ? 'bg-green-200' 
-                                  : 'bg-gray-200'
+                              msg.role === 'user'
+                                ? 'bg-blue-500 text-white'
+                                : msg.role === 'assistant'
+                                  ? msg.content.includes('Correct!')
+                                    ? 'bg-green-100 border border-green-300'
+                                    : msg.content.includes('Incorrect')
+                                      ? 'bg-red-100 border border-red-300'
+                                      : 'bg-gray-100 border border-gray-300'
+                                  : 'bg-gray-100 border border-gray-300'
                             }`}>
-                              {msg.content}
+                              <p className="text-sm">{msg.content}</p>
+                              {msg.isQuestion && msg.options && (
+                                <div className="mt-3 space-y-2">
+                                  {msg.options.map((option, optionIndex) => (
+                                    <Button
+                                      key={optionIndex}
+                                      onClick={() => handleQuizAnswer(String(optionIndex), msg.correctAnswer || '', msg.explanation || '')}
+                                      className="w-full text-left justify-start h-auto py-2 px-3"
+                                      variant="outline"
+                                      disabled={msg.answered}
+                                    >
+                                      <span className="font-semibold mr-2">{String.fromCharCode(65 + optionIndex)}.</span> {option}
+                                    </Button>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           </div>
                         ))}
                         {isAiTyping && (
                           <div className="flex justify-start" ref={lastMessageRef}>
-                            <div className="max-w-[80%] p-3 rounded-lg bg-gray-200">
+                            <div className="max-w-[80%] p-3 rounded-lg bg-gray-100 border border-gray-300">
                               <motion.div
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 transition={{ repeat: Infinity, duration: 0.8, ease: "easeInOut" }}
+                                className="flex items-center space-x-1"
                               >
-                                Thinking...
+                                <div className="w-2 h-2 bg-gray-500 rounded-full" />
+                                <div className="w-2 h-2 bg-gray-500 rounded-full" />
+                                <div className="w-2 h-2 bg-gray-500 rounded-full" />
                               </motion.div>
                             </div>
                           </div>
                         )}
                       </div>
                     </ScrollArea>
-                    <div className="mb-4">
-                      <h4 className="text-sm font-semibold mb-2">Recently Listened:</h4>
-                      {recentlyListened.length > 0 ? (
-                        recentlyListened.map((episode) => (
-                          <div key={episode.id} className="flex justify-between items-center mb-2">
-                            <span className="text-sm truncate mr-2">{episode.title}</span>
-                            <div>
-                              <Button variant="outline" size="sm" className="mr-1" onClick={() => handleBookmarkExplain(episode)}>
-                                <BookOpen className="h-3 w-3" />
-                              </Button>
-                              <Button variant="outline" size="sm" onClick={() => handleBookmarkQuiz(episode)}>
-                                <BrainCircuit className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="text-center py-4">
-                          <Headphones className="mx-auto h-12 w-12 text-gray-400 mb-2" />
-                          <p className="text-sm text-gray-500">No episodes listened to yet.</p>
-                          <p className="text-xs text-gray-400">Start listening to see your recent episodes here!</p>
-                        </div>
-                      )}
+                    
+                    <div className="mt-auto">
+                      <div 
+                        className="flex items-center justify-between cursor-pointer mb-2"
+                        onClick={() => setIsRecentlyListenedExpanded(!isRecentlyListenedExpanded)}
+                      >
+                        <h4 className="text-sm font-semibold">Recently Listened</h4>
+                        <Button variant="ghost" size="sm">
+                          {isRecentlyListenedExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                      
+                      <AnimatePresence>
+                        {isRecentlyListenedExpanded && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.3 }}
+                            className="overflow-hidden"
+                          >
+                            {recentlyListened.length > 0 ? (
+                              recentlyListened.map((episode) => (
+                                <div key={episode.id} className="flex justify-between items-center mb-2">
+                                  <span className="text-sm truncate mr-2">{episode.title}</span>
+                                  <div>
+                                    <Button variant="outline" size="sm" className="mr-1" onClick={() => handleBookmarkExplain(episode)}>
+                                      <BookOpen className="h-3 w-3" />
+                                    </Button>
+                                    <Button variant="outline" size="sm" onClick={() => handleBookmarkQuiz(episode)}>
+                                      <BrainCircuit className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="text-center py-4">
+                                <Headphones className="mx-auto h-12 w-12 text-gray-400 mb-2" />
+                                <p className="text-sm text-gray-500">No episodes listened to yet.</p>
+                                <p className="text-xs text-gray-400">Start listening to see your recent episodes here!</p>
+                              </div>
+                            )}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
-                    <div className="flex items-center space-x-2">
+
+                    <div className="flex items-center space-x-2 mt-4">
                       <Input
                         value={chatInput}
                         onChange={(e) => setChatInput(e.target.value)}

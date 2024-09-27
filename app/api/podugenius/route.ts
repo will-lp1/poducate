@@ -27,11 +27,11 @@ export async function POST(req: Request) {
       For each question, provide 4 options. Format your response as JSON with the following structure:
       {
         "question": "The question text",
-        "options": ["Option A", "Option B", "Option C", "Option D"],
-        "correctAnswer": "The correct option",
+        "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+        "correctAnswer": "The correct option (as a string, e.g., '0', '1', '2', or '3', representing the index of the correct option)",
         "explanation": "Explanation of the correct answer"
       }
-      After the user selects an answer, provide feedback on whether it was correct and explain why.`;
+      Do not mention anything about typing A, B, C, or D in your response. The user will click buttons to answer.`;
     } else {
       throw new Error('Invalid action specified');
     }
@@ -56,19 +56,25 @@ export async function POST(req: Request) {
         return NextResponse.json({
           response: parsedResponse.question,
           options: parsedResponse.options,
-          isQuestion: true,
-          isCorrect: undefined
+          correctAnswer: parsedResponse.correctAnswer,
+          explanation: parsedResponse.explanation,
+          isQuestion: true
         });
       } catch (error) {
-        // If it's not a question, it's probably feedback on the answer
-        const isCorrect = response.toLowerCase().includes('correct');
-        return NextResponse.json({ response, isCorrect, isQuestion: false });
+        console.error('Error parsing quiz response:', error);
+        return NextResponse.json({ error: 'Failed to generate quiz question.' }, { status: 500 });
       }
     }
 
     return NextResponse.json({ response });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in Podugenius API:', error);
-    return NextResponse.json({ error: 'An error occurred while processing your request.' }, { status: 500 });
+    
+    let errorMessage = 'An error occurred while processing your request.';
+    if (error.cause && error.cause.code === 'CERT_NOT_YET_VALID') {
+      errorMessage = 'There seems to be an issue with the system time. Please check your computer\'s clock and try again.';
+    }
+    
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
