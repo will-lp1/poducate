@@ -468,7 +468,7 @@ export default function Dashboard() {
 
         <div className="flex flex-1 overflow-hidden">
           {/* Sidebar (hidden on mobile) */}
-          <aside className="w-64 bg-white p-4 shadow-md flex-col hidden md:flex">
+          <aside className={`w-64 bg-white p-4 shadow-md flex-col ${isMobileMenuOpen ? 'block' : 'hidden'} md:flex`}>
             <div className="mb-6">
               <Image
                 src="/Vector.svg"
@@ -485,6 +485,7 @@ export default function Dashboard() {
                 onClick={() => {
                   setActiveTab("home")
                   setShowGenerator(false)
+                  setIsMobileMenuOpen(false)
                 }}
               >
                 <Home className="mr-2 h-4 w-4" />
@@ -496,6 +497,7 @@ export default function Dashboard() {
                 onClick={() => {
                   setActiveTab("bookmarks")
                   setShowGenerator(false)
+                  setIsMobileMenuOpen(false)
                 }}
               >
                 <Bookmark className="mr-2 h-4 w-4" />
@@ -507,6 +509,7 @@ export default function Dashboard() {
                 onClick={() => {
                   setActiveTab("generator")
                   setShowGenerator(true)
+                  setIsMobileMenuOpen(false)
                 }}
               >
                 <Wand2 className="mr-2 h-4 w-4" />
@@ -968,8 +971,15 @@ export default function Dashboard() {
         {showBookmarkPopup && (
           <motion.div 
             initial={{ opacity: 0, y: 50 }}
-  return (
-    <>
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            className="fixed bottom-4 right-4 bg-white p-4 rounded-md shadow-lg z-50"
+          >
+            <p className="text-green-600 font-semibold">Bookmark saved successfully!</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="flex h-screen bg-gray-100">
         {/* Sidebar */}
         <aside className="w-64 bg-white p-4 shadow-md flex flex-col">
