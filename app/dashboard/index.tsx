@@ -188,8 +188,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [isRecentlyListenedExpanded, setIsRecentlyListenedExpanded] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const [allEpisodes, setAllEpisodes] = useState<Episode[]>([])
-  const [filteredEpisodes, setFilteredEpisodes] = useState<Episode[]>([])
+  const [filteredEpisodes, setFilteredEpisodes] = useState<Episode[]>(episodes)
   const [searchSuggestions, setSearchSuggestions] = useState<string[]>([])
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -441,28 +440,13 @@ export default function Dashboard() {
     localStorage.setItem('hasSeenIntroGuide', 'true')
   }
 
-  useEffect(() => {
-    // Fetch all episodes when the component mounts
-    fetchEpisodes()
-  }, [])
-
-  const fetchEpisodes = async () => {
-    try {
-      const response = await axios.get('/api/episodes')
-      setAllEpisodes(response.data)
-      setFilteredEpisodes(response.data)
-    } catch (error) {
-      console.error('Error fetching episodes:', error)
-    }
-  }
-
   const handleSearch = (query: string) => {
     setSearchQuery(query)
     if (query.trim() === '') {
-      setFilteredEpisodes(allEpisodes)
+      setFilteredEpisodes(episodes)
       setSearchSuggestions([])
     } else {
-      const filtered = allEpisodes.filter(episode =>
+      const filtered = episodes.filter(episode =>
         episode.title.toLowerCase().includes(query.toLowerCase()) ||
         episode.subject.toLowerCase().includes(query.toLowerCase())
       )
