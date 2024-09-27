@@ -452,7 +452,6 @@ export default function Dashboard() {
       )
       setFilteredEpisodes(filtered)
 
-      // Generate search suggestions
       const suggestions = Array.from(new Set(
         filtered.map(episode => episode.title)
           .concat(filtered.map(episode => episode.subject))
@@ -591,6 +590,47 @@ export default function Dashboard() {
               </Button>
             </nav>
             <Button onClick={signOut} variant="outline">Sign Out</Button>
+
+            {/* Sidebar player (visible only on desktop) */}
+            <AnimatePresence>
+              {currentEpisode && !isLightboxOpen && (
+                <motion.div
+                  layoutId="player-container"
+                  initial={{ opacity: 0, y: 50 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 50 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                  className="mt-auto bg-white p-4 border-t border-gray-200 shadow-lg"
+                >
+                  <motion.div layoutId="player-content" className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 mr-2 overflow-hidden">
+                        <p className="text-sm font-semibold truncate">{currentEpisode.title}</p>
+                        <p className="text-xs text-gray-500 truncate">{currentEpisode.subject}</p>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => setIsLightboxOpen(true)} 
+                        className="flex-shrink-0"
+                      >
+                        <Maximize2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <motion.div layoutId="player-controls">
+                      <PodcastPlayer
+                        episode={currentEpisode}
+                        isPlaying={isPlaying}
+                        setIsPlaying={setIsPlaying}
+                        progress={progress}
+                        setProgress={setProgress}
+                        compact={true}
+                      />
+                    </motion.div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </aside>
 
           {/* Main content */}
@@ -621,33 +661,23 @@ export default function Dashboard() {
                   )}
                 </div>
 
-                {/* Episode list */}
-                <ScrollArea className="h-[calc(100vh-200px)]">
-                  {filteredEpisodes.map((episode) => (
-                    <Card key={episode.id} className="mb-4">
+                {/* Subject cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {subjects.map((subject) => (
+                    <Card
+                      key={subject.name}
+                      className={`${subject.color} text-white cursor-pointer hover:opacity-90 transition-all duration-300 transform hover:scale-105`}
+                      onClick={() => subject.available && handleSubjectClick(subject.name)}
+                    >
                       <CardHeader>
-                        <CardTitle className="text-lg">{episode.title}</CardTitle>
+                        <CardTitle className="text-2xl">{subject.name}</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-500">{episode.duration}</span>
-                          <Badge>{episode.subject}</Badge>
-                          <div className="space-x-2">
-                            <Button onClick={() => handleEpisodeClick(episode)}>Play</Button>
-                            <Button variant="outline" onClick={() => handleBookmarkExplain(episode)}>
-                              <BookOpen className="mr-2 h-4 w-4" />
-                              Explain
-                            </Button>
-                            <Button variant="outline" onClick={() => handleBookmarkQuiz(episode)}>
-                              <BrainCircuit className="mr-2 h-4 w-4" />
-                              Quiz
-                            </Button>
-                          </div>
-                        </div>
+                        <p className="text-4xl">{subject.icon}</p>
                       </CardContent>
                     </Card>
                   ))}
-                </ScrollArea>
+                </div>
               </TabsContent>
               <TabsContent value="bookmarks" className="mt-0">
                 <BookmarkPage
@@ -666,18 +696,18 @@ export default function Dashboard() {
           </main>
         </div>
 
-        {/* Sidebar player (visible on both mobile and desktop) */}
+        {/* Mobile player (visible only on mobile) */}
         <AnimatePresence>
           {currentEpisode && !isLightboxOpen && (
             <motion.div
-              layoutId="player-container"
+              layoutId="player-container-mobile"
               initial={{ opacity: 0, y: 50 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 50 }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="fixed bottom-0 left-0 right-0 bg-white p-4 border-t border-gray-200 shadow-lg md:w-64 md:left-auto"
+              className="fixed bottom-0 left-0 right-0 bg-white p-4 border-t border-gray-200 shadow-lg md:hidden"
             >
-              <motion.div layoutId="player-content" className="space-y-2">
+              <motion.div layoutId="player-content-mobile" className="space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex-1 mr-2 overflow-hidden">
                     <p className="text-sm font-semibold truncate">{currentEpisode.title}</p>
@@ -692,7 +722,7 @@ export default function Dashboard() {
                     <Maximize2 className="h-4 w-4" />
                   </Button>
                 </div>
-                <motion.div layoutId="player-controls">
+                <motion.div layoutId="player-controls-mobile">
                   <PodcastPlayer
                     episode={currentEpisode}
                     isPlaying={isPlaying}
@@ -891,12 +921,12 @@ export default function Dashboard() {
                 <div>
                   <div className="flex justify-between items-center mb-6">
                     <h3 className="text-2xl font-bold">{selectedSubject} Episodes</h3>
-                    <Button variant="ghost" size="icon" onClick={closeLightbox}>
+                    <Button variant="ghost" size="icon" onClick={() => setIsLightboxOpen(false)}>
                       <Minimize2 className="h-6 w-6" />
                     </Button>
                   </div>
                   <ScrollArea className="h-[400px] mb-4">
-                    {episodes.filter(episode => episode.subject === selectedSubject).map((episode) => (
+                    {filteredEpisodes.filter(episode => episode.subject === selectedSubject).map((episode) => (
                       <div
                         key={episode.id}
                         className="flex justify-between items-center py-2 border-b cursor-pointer hover:bg-gray-100"
@@ -920,7 +950,7 @@ export default function Dashboard() {
                         <p className="text-sm text-gray-500">{currentEpisode.subject}</p>
                       </div>
                     </div>
-                    <Button variant="ghost" size="icon" onClick={closeLightbox}>
+                    <Button variant="ghost" size="icon" onClick={() => setIsLightboxOpen(false)}>
                       <Minimize2 className="h-6 w-6" />
                     </Button>
                   </div>
