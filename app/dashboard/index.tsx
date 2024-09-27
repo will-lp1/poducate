@@ -445,19 +445,12 @@ export default function Dashboard() {
     setSearchQuery(query);
     if (query.trim() === '') {
       setSearchResults([]);
-      setSearchSuggestions([]);
     } else {
       const filtered = episodes.filter(episode =>
         episode.title.toLowerCase().includes(query.toLowerCase()) ||
         episode.subject.toLowerCase().includes(query.toLowerCase())
       );
       setSearchResults(filtered);
-
-      const suggestions = Array.from(new Set(
-        filtered.map(episode => episode.title)
-          .concat(filtered.map(episode => episode.subject))
-      )).slice(0, 5);
-      setSearchSuggestions(suggestions);
     }
   };
 
@@ -655,25 +648,16 @@ export default function Dashboard() {
                     value={searchQuery}
                     onChange={(e) => handleSearch(e.target.value)}
                   />
-                  {(searchSuggestions.length > 0 || searchResults.length > 0) && (
+                  {(searchResults.length > 0) && (
                     <ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-1 max-h-[300px] overflow-y-auto">
-                      {searchSuggestions.map((suggestion, index) => (
+                      {searchResults.map((result) => (
                         <li
-                          key={`suggestion-${index}`}
-                          className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                          onClick={() => handleSearch(suggestion)}
-                        >
-                          {suggestion}
-                        </li>
-                      ))}
-                      {searchResults.map((episode) => (
-                        <li
-                          key={`result-${episode.id}`}
+                          key={`result-${result.id}`}
                           className="flex justify-between items-center px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                          onClick={() => handleSearchResultClick(episode)}
+                          onClick={() => handleSearchResultClick(result)}
                         >
-                          <span>{episode.title}</span>
-                          <span className="text-sm text-gray-500">{episode.subject}</span>
+                          <span>{result.title}</span>
+                          <span className="text-sm text-gray-500">{result.subject}</span>
                         </li>
                       ))}
                     </ul>
