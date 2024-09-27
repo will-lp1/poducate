@@ -391,8 +391,8 @@ export default function Dashboard() {
 
   const addToRecentlyListened = (episode: Episode) => {
     setRecentlyListened(prev => {
-      const filtered = prev.filter(ep => ep.id !== episode.id)
-      return [episode, ...filtered].slice(0, 2)
+      const filtered = prev.filter(ep => ep.id !== episode.id);
+      return [episode, ...filtered].slice(0, 5);  // Keep the 5 most recent
     });
   };
 
@@ -460,6 +460,7 @@ export default function Dashboard() {
     setSearchQuery('');
     setSearchResults([]);
     setSearchSuggestions([]);
+    addToRecentlyListened(episode);  // Add this line
   };
 
   if (loading) {
