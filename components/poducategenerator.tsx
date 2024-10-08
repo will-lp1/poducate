@@ -9,14 +9,23 @@ import { Progress } from "./ui/progress"
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
 import { Episode } from "@/types/podcast"
 import PodcastPlayer from "./PodcastPlayer"
-import { Download, BookmarkPlus, Copy, Check } from 'lucide-react'
+import { Download, BookmarkPlus, Copy, Check, ArrowRight } from 'lucide-react'
 import axios from 'axios'
 import { Textarea } from "./ui/textarea"
+import { AnimatePresence, motion } from "framer-motion"
 
 const predefinedSubjects = ["Technology", "Science", "History", "Arts", "Business", "Health"]
 const styles = ["Quick Bites", "Deep Dives", "Story Time", "Key Ideas Explained", "Casual Conversations", "Big Picture View", "Beginner's Guide"]
 
-export default function PoducateGenerator({ setBookmarks }: { setBookmarks: React.Dispatch<React.SetStateAction<Episode[]>> }) {
+export default function PoducateGenerator({ 
+  setBookmarks, 
+  onGoToLibrary,
+  onPodcastGenerated
+}: { 
+  setBookmarks: React.Dispatch<React.SetStateAction<Episode[]>>,
+  onGoToLibrary: () => void,
+  onPodcastGenerated: (episode: Episode) => void
+}) {
   const [topic, setTopic] = useState("")
   const [selectedSubject, setSelectedSubject] = useState<string>("")
   const [selectedStyle, setSelectedStyle] = useState<string>("")
@@ -32,6 +41,11 @@ export default function PoducateGenerator({ setBookmarks }: { setBookmarks: Reac
   const [customSubject, setCustomSubject] = useState("")
   const [context, setContext] = useState("")
   const [contextAdded, setContextAdded] = useState(false)
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [playerProgress, setPlayerProgress] = useState(0);
+  const [savedBookmark, setSavedBookmark] = useState(false);
+  const [showBookmarkPopup, setShowBookmarkPopup] = useState(false);
+  const [audioDuration, setAudioDuration] = useState("00:00");
 
   const calculateAudioDuration = (audioBlob: Blob): Promise<string> => {
     return new Promise((resolve) => {
@@ -59,33 +73,37 @@ export default function PoducateGenerator({ setBookmarks }: { setBookmarks: Reac
     setShowPlayer(false)
 
     try {
-      setProgressStage('Generating podcast')
+      setProgressStage('Generating podcast (this may take a few minutes)')
       const response = await axios.post('/api/generate-podcast', {
         topic,
         subject: subjectToUse,
         style: selectedStyle,
         difficulty: selectedDifficulty,
-        context // Add the context to the API call
+        context
       }, {
-        responseType: 'arraybuffer',
+        responseType: 'json',
         onDownloadProgress: (progressEvent) => {
           const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total ?? 1));
           setProgress(percentCompleted);
         }
       })
 
-      const responseData = new TextDecoder().decode(response.data);
-      const [scriptJson, ...audioChunks] = responseData.split('\n');
-      const { script } = JSON.parse(scriptJson);
+      const { script, audioBuffer } = response.data;
       setTranscript(script);
 
-      const audioBlob = new Blob(audioChunks, { type: 'audio/mpeg' });
+      if (!audioBuffer) {
+        throw new Error('No audio data received from the server');
+      }
+
+      const audioArrayBuffer = Uint8Array.from(atob(audioBuffer), c => c.charCodeAt(0)).buffer;
+      const audioBlob = new Blob([audioArrayBuffer], { type: 'audio/mpeg' });
       setAudioBlob(audioBlob);
       setAudioUrl(URL.createObjectURL(audioBlob));
 
       // Calculate audio duration
       setProgressStage('Finalizing')
       const duration = await calculateAudioDuration(audioBlob)
+      setAudioDuration(duration);
       setProgress(100)
 
       const newPodcast: Episode = {
@@ -93,16 +111,22 @@ export default function PoducateGenerator({ setBookmarks }: { setBookmarks: Reac
         title: `Generated Podcast: ${topic}`,
         duration: duration,
         subject: subjectToUse,
-        transcript: script
+        transcript: script,
+        audioUrl: URL.createObjectURL(audioBlob)
       }
 
       setShowPlayer(true)
+      onPodcastGenerated(newPodcast) // Call this function with the new podcast
     } catch (error) {
       console.error('Error generating podcast:', error)
-      alert('Failed to generate podcast. Please try again.')
+      if (axios.isAxiosError(error) && error.response) {
+        alert(`Failed to generate podcast: ${error.response.data.message || error.message}`)
+      } else {
+        alert('Failed to generate podcast. Please try again.')
+      }
     } finally {
       setLoading(false)
-      setContextAdded(false) // Reset context added state after generation
+      setContextAdded(false)
     }
   }
 
@@ -113,17 +137,35 @@ export default function PoducateGenerator({ setBookmarks }: { setBookmarks: Reac
   }
 
   const handleSaveBookmark = () => {
-    if (audioBlob) {
+    if (audioBlob && audioUrl) {
       const newPodcast: Episode = {
         id: Date.now(),
         title: `Generated Podcast: ${topic}`,
-        duration: '5:00',
-        subject: selectedSubject,
+        duration: '5:00', // You might want to calculate this dynamically
+        subject: selectedSubject === "custom" ? customSubject : selectedSubject,
         transcript: transcript,
+        audioUrl: audioUrl
       }
-      setBookmarks(prev => [...prev, newPodcast])
-      alert('Podcast saved to bookmarks successfully!')
+      setBookmarks(prev => {
+        // Check if the podcast is already in bookmarks
+        const isAlreadyBookmarked = prev.some(bookmark => bookmark.id === newPodcast.id);
+        if (!isAlreadyBookmarked) {
+          return [...prev, newPodcast];
+        }
+        return prev;
+      });
+      setSavedBookmark(true);
+      setShowBookmarkPopup(true);
+      setTimeout(() => {
+        setSavedBookmark(false);
+        setShowBookmarkPopup(false);
+      }, 5000);  // 5 seconds delay
     }
+  }
+
+  const goToBookmarks = () => {
+    onGoToLibrary();
+    setShowBookmarkPopup(false);
   }
 
   const handleContextPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
@@ -231,6 +273,7 @@ export default function PoducateGenerator({ setBookmarks }: { setBookmarks: Reac
           <div className="space-y-2">
             <Progress value={progress} className="w-full" />
             <p className="text-sm text-center">{progressStage}</p>
+            <p className="text-xs text-center text-gray-500">This is a quick test generation.</p>
           </div>
         )}
 
@@ -244,16 +287,32 @@ export default function PoducateGenerator({ setBookmarks }: { setBookmarks: Reac
                 episode={{
                   id: Date.now(),
                   title: `Generated Podcast: ${topic}`,
-                  duration: '5:00',
+                  duration: audioDuration,
                   subject: selectedSubject,
-                  transcript: transcript
+                  transcript: transcript,
+                  audioUrl: audioUrl
                 }}
-                isPlaying={false}
-                setIsPlaying={() => {}}
-                progress={0}
-                setProgress={() => {}}
               />
               <div className="flex space-x-2">
+                <Button 
+                  onClick={handleSaveBookmark} 
+                  variant="outline" 
+                  className="w-full relative"
+                  disabled={savedBookmark}
+                >
+                  <BookmarkPlus className="mr-2 h-5 w-5" />
+                  Save to Bookmarks
+                  {savedBookmark && (
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      exit={{ scale: 0 }}
+                      className="absolute inset-0 flex items-center justify-center bg-green-500 text-white rounded"
+                    >
+                      <Check className="h-5 w-5" />
+                    </motion.div>
+                  )}
+                </Button>
                 <Button onClick={() => {
                   if (audioBlob) {
                     const url = URL.createObjectURL(audioBlob)
@@ -268,10 +327,6 @@ export default function PoducateGenerator({ setBookmarks }: { setBookmarks: Reac
                   <Download className="mr-2 h-4 w-4" />
                   Download
                 </Button>
-                <Button onClick={handleSaveBookmark}>
-                  <BookmarkPlus className="mr-2 h-4 w-4" />
-                  Save to Bookmarks
-                </Button>
                 <Button onClick={copyTranscript} disabled={transcriptCopied}>
                   {transcriptCopied ? <Check className="mr-2 h-4 w-4" /> : <Copy className="mr-2 h-4 w-4" />}
                   {transcriptCopied ? 'Copied' : 'Copy Transcript'}
@@ -280,6 +335,25 @@ export default function PoducateGenerator({ setBookmarks }: { setBookmarks: Reac
             </CardContent>
           </Card>
         )}
+
+        {/* Bookmark Saved Popup */}
+        <AnimatePresence>
+          {showBookmarkPopup && (
+            <motion.div 
+              initial={{ opacity: 0, y: 50 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 50 }}
+              className="fixed bottom-4 right-4 bg-white p-4 rounded-lg shadow-lg z-50 flex items-center space-x-4"
+            >
+              <Check className="text-green-500 mr-2 h-5 w-5" />
+              <span className="mr-4">Successfully saved to bookmarks.</span>
+              <Button onClick={goToBookmarks} variant="outline" size="sm" className="flex items-center">
+                Go to Library
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </CardContent>
     </Card>
   )

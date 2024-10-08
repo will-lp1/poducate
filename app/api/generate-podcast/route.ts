@@ -27,25 +27,33 @@ export async function POST(req: Request) {
       throw new Error('ElevenLabs client is not initialized');
     }
 
-    let promptContent = `Create a podcast script about ${topic} in the style of ${style} at difficulty level ${difficulty}/10. Subject: ${subject}. The script should be approximately 750 words long, which typically results in a 5-minute podcast. Do not include any interruptions, speaker labels, or audio cues.`;
+    let promptContent = `Create an educational podcast script about ${topic} in the style of ${style} at difficulty level ${difficulty}/10. Subject: ${subject}. The script should be approximately 3000 characters long. 
+
+    Structure the podcast as follows:
+    1. Introduction: Briefly introduce the topic and why it's important.
+    2. Main Content: Divide the topic into 3-4 key points or subtopics. Explain each one clearly, using examples or analogies where appropriate.
+    3. Summary: Recap the main points discussed.
+    4. Breif conclusion and mention of Podugenius quiz to test knowledge
+
+    Use a conversational tone and avoid technical jargon unless necessary. If using technical terms, briefly explain them. Do not include any interruptions, speaker labels, or audio cues.`;
     
     if (context) {
-      promptContent += ` Use the following context to inform the content: ${context}`;
+      promptContent += ` Incorporate the following context into the script where relevant: ${context}`;
     }
 
     const scriptCompletion = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
+      model: "gpt-3.5-turbo-16k", // Using a model with higher context length
       messages: [
         {
           role: "system",
-          content: "You are an expert podcast script writer that creates single host podcast scripts. Aim for about 750 words to create a 5-minute podcast. Get straight to the point to optimize for learning. Minimal preamble or introduction. Focus on delivering valuable content about the topic."
+          content: "You are an expert educational podcast script writer that creates informative, engaging, and well-structured single-host podcast scripts. Your goal is to educate listeners on various topics in an accessible and interesting way. Aim for about 3000 characters to create a comprehensive yet concise educational podcast."
         },
         {
           role: "user",
           content: promptContent
         }
       ],
-      max_tokens: 1000
+      max_tokens: 2000 // Increased token limit to accommodate longer script
     });
 
     const script = scriptCompletion.choices[0].message.content;
@@ -61,26 +69,32 @@ export async function POST(req: Request) {
         stream: true
       });
 
-      const responseStream = new ReadableStream({
-        async start(controller) {
-          controller.enqueue(JSON.stringify({ script }) + '\n');
-          for await (const chunk of audioStream) {
-            controller.enqueue(chunk);
-          }
-          controller.close();
-        },
-      });
+      // Collect all chunks into a single buffer
+      const chunks: Uint8Array[] = [];
+      for await (const chunk of audioStream) {
+        chunks.push(chunk);
+      }
+      const audioBuffer = Buffer.concat(chunks);
 
-      return new NextResponse(responseStream, {
-        headers: {
-          'Content-Type': 'application/octet-stream',
-        },
-      });
+      // Check if the audio buffer is valid
+      if (audioBuffer.length === 0) {
+        throw new Error('Generated audio buffer is empty');
+      }
+
+      return new NextResponse(
+        JSON.stringify({ script, audioBuffer: audioBuffer.toString('base64') }),
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
     } catch (elevenLabsError) {
       console.error('ElevenLabs API error:', elevenLabsError);
       return NextResponse.json({ 
         error: 'ElevenLabs API error', 
         message: 'Failed to generate audio. Please check your ElevenLabs API key.',
+        details: elevenLabsError instanceof Error ? elevenLabsError.message : String(elevenLabsError),
         script: script // Return the generated script even if audio generation fails
       }, { status: 500 });
     }

@@ -4,6 +4,7 @@ export interface Episode {
   duration: string;
   subject: string;
   transcript: string;
+  audioUrl: string;
 }
 
 export interface Subject {

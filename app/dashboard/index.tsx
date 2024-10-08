@@ -247,6 +247,14 @@ export default function Dashboard() {
     addToRecentlyListened(episode)
   }
 
+  // Update this function to include the correct duration
+  const handleGeneratedPodcast = (generatedEpisode: Episode) => {
+    setCurrentEpisode(generatedEpisode)
+    setIsLightboxOpen(true)
+    setSelectedSubject(null)
+    addToRecentlyListened(generatedEpisode)
+  }
+
   const closeLightbox = useCallback(() => {
     setIsLightboxOpen(false)
     setSelectedSubject(null)
@@ -463,6 +471,11 @@ export default function Dashboard() {
     addToRecentlyListened(episode);  // Add this line
   };
 
+  const handleGoToLibrary = () => {
+    setActiveTab("bookmarks");
+    setShowGenerator(false);
+  };
+
   if (loading) {
     return <div>Loading...</div>
   }
@@ -623,11 +636,6 @@ export default function Dashboard() {
                     <motion.div layoutId="player-controls">
                       <PodcastPlayer
                         episode={currentEpisode}
-                        isPlaying={isPlaying}
-                        setIsPlaying={setIsPlaying}
-                        progress={progress}
-                        setProgress={setProgress}
-                        compact={true}
                       />
                     </motion.div>
                   </motion.div>
@@ -710,7 +718,11 @@ export default function Dashboard() {
               </TabsContent>
               <TabsContent value="generator" className="mt-0">
                 <div className="max-w-2xl mx-auto">
-                  <PoducateGenerator setBookmarks={setBookmarks} />
+                  <PoducateGenerator 
+                    setBookmarks={setBookmarks} 
+                    onGoToLibrary={handleGoToLibrary}
+                    onPodcastGenerated={handleGeneratedPodcast}
+                  />
                 </div>
               </TabsContent>
             </Tabs>
@@ -977,12 +989,7 @@ export default function Dashboard() {
                   </div>
                   <div className="bg-gray-100 p-6 rounded-lg mb-6">
                     <PodcastPlayer 
-                      episode={currentEpisode} 
-                      isPlaying={isPlaying}
-                      setIsPlaying={setIsPlaying}
-                      progress={progress}
-                      setProgress={setProgress}
-                      compact={false}
+                      episode={currentEpisode}
                     />
                   </div>
                   <div className="space-y-4">
